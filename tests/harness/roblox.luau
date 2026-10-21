@@ -648,7 +648,10 @@ Imt.__index = function(self, k)
 	end
 	-- unknown events
 	local signals = rawget(self, "__signals")
-	if string.match(k, "^[A-Z]") and (k:match("ed$") or k:match("^On") or k == "Triggered") then
+	if
+		string.match(k, "^[A-Z]")
+		and (k:match("ed$") or k:match("ing$") or k:match("^On") or k:match("^Pre") or k:match("^Post") or k == "Heartbeat" or k == "Stepped")
+	then
 		signals[k] = signals[k] or newSignal()
 		return signals[k]
 	end
@@ -878,10 +881,126 @@ function methods.CanSetNetworkOwnership()
 	return true
 end
 function methods.Play() end
+function methods.FireClient() end
+function methods.FireAllClients() end
+function methods.FireServer() end
+function methods.InvokeServer()
+	return nil
+end
+function methods.Sit() end
+function methods.Kick() end
+function methods.LoadCharacter() end
+function methods.GetExtentsSize(self)
+	local _, size = methods.GetBoundingBox(self)
+	return size
+end
+function methods.WriteVoxels() end
+function methods.ReadVoxels()
+	return {}, {}
+end
+function methods.Connect()
+	return { Disconnect = function() end }
+end
 function methods.Stop() end
 function methods.Emit() end
 
 M.Instance = Instance
+
+-- Deterministic Random (xorshift)
+local RandomT = {}
+RandomT.__index = RandomT
+local function newRandom(seed)
+	local state = math.floor((seed or os.time()) * 2654435761) % 4294967296
+	if state == 0 then
+		state = 1
+	end
+	return setmetatable({ s = state }, RandomT)
+end
+function RandomT:_next()
+	local x = self.s
+	x = bit32.bxor(x, bit32.lshift(x, 13))
+	x = bit32.bxor(x, bit32.rshift(x, 17))
+	x = bit32.bxor(x, bit32.lshift(x, 5))
+	self.s = x
+	return x / 4294967296
+end
+function RandomT:NextNumber(a, b)
+	a = a or 0
+	b = b or 1
+	return a + (b - a) * self:_next()
+end
+function RandomT:NextInteger(a, b)
+	return math.floor(a + (b - a + 1) * self:_next())
+end
+M.Random = { new = newRandom }
+
+M.Region3 = simpleType("Region3", { "Min", "Max" })
+
+local function newRaycastParams()
+	local p = { FilterDescendantsInstances = {}, FilterType = nil, IgnoreWater = false, RespectCanCollide = false, CollisionGroup = "Default" }
+	function p.AddToFilter(self, x)
+		table.insert(self.FilterDescendantsInstances, x)
+	end
+	return p
+end
+M.RaycastParams = { new = newRaycastParams }
+M.OverlapParams = { new = newRaycastParams }
+
+-- in-memory DataStore
+local function memoryStore()
+	local data = {}
+	local store = {}
+	function store.UpdateAsync(_, key, fn)
+		local old = data[key]
+		local new = fn(old)
+		if new ~= nil then
+			data[key] = new
+		end
+		return new
+	end
+	function store.GetAsync(_, key)
+		return data[key]
+	end
+	function store.SetAsync(_, key, value)
+		data[key] = value
+	end
+	function store.GetSortedAsync(_, ascending, size)
+		local list = {}
+		for k, v in data do
+			table.insert(list, { key = k, value = v })
+		end
+		table.sort(list, function(a, b)
+			if ascending then
+				return a.value < b.value
+			end
+			return a.value > b.value
+		end)
+		local page = {}
+		for i = 1, math.min(size, #list) do
+			page[i] = list[i]
+		end
+		return {
+			GetCurrentPage = function()
+				return page
+			end,
+		}
+	end
+	store.__data = data
+	return store
+end
+M.memoryStore = memoryStore
+
+local function deepCopy(v)
+	if type(v) ~= "table" then
+		return v
+	end
+	local out = {}
+	for k, x in v do
+		out[k] = deepCopy(x)
+	end
+	return setmetatable(out, getmetatable(v))
+end
+M.deepCopy = deepCopy
 
 --------------------------------------------------------------------------------
 -- Services / globals
@@ -940,6 +1059,45 @@ function M.makeGame()
 	end
 	rawget(cs, "__props").GetTagged = function()
 		return {}
+	end
+	local tagged = {}
+	rawget(cs, "__props").AddTag = function(_, inst, tag)
+		inst:AddTag(tag)
+		tagged[tag] = tagged[tag] or {}
+		table.insert(tagged[tag], inst)
+	end
+	rawget(cs, "__props").RemoveTag = function(_, inst, tag)
+		local list = tagged[tag]
+		if list then
+			local i = table.find(list, inst)
+			if i then
+				table.remove(list, i)
+			end
+		end
+	end
+	rawget(cs, "__props").GetTagged = function(_, tag)
+		return table.clone(tagged[tag] or {})
+	end
+	local dss = service("DataStoreService")
+	local stores = {}
+	rawget(dss, "__props").GetDataStore = function(_, name)
+		stores[name] = stores[name] or memoryStore()
+		return stores[name]
+	end
+	rawget(dss, "__props").GetOrderedDataStore = rawget(dss, "__props").GetDataStore
+	local http = service("HttpService")
+	local blobs = {}
+	rawget(http, "__props").JSONEncode = function(_, v)
+		table.insert(blobs, deepCopy(v))
+		return "blob:" .. #blobs
+	end
+	rawget(http, "__props").JSONDecode = function(_, key)
+		return deepCopy(blobs[tonumber(string.sub(key, 6))])
+	end
+	rawget(game, "__props").BindToClose = function() end
+	rawget(game, "__props").JobId = "test-job"
+	rawget(players, "__props").GetPlayerByUserId = function()
+		return nil
 	end
 	local ps = service("PhysicsService")
 	rawget(ps, "__props").RegisterCollisionGroup = function() end
@@ -1006,17 +1164,34 @@ function M.environment()
 	env.Font = M.Font
 	env.Enum = Enum
 	env.Instance = Instance
+	env.Random = M.Random
+	env.Region3 = M.Region3
+	env.RaycastParams = M.RaycastParams
+	env.OverlapParams = M.OverlapParams
+	env.bit32 = bit32
+	env.os = os
 	env.typeof = typeName
+	-- Cooperative task mock: spawned functions run until their first wait and
+	-- then stay suspended (so `while true do task.wait() end` loops can't hang tests).
+	local spawned = setmetatable({}, { __mode = "k" })
+	local function spawnTask(f, ...)
+		local co = coroutine.create(f)
+		spawned[co] = true
+		local ok, err = coroutine.resume(co, ...)
+		if not ok then
+			error(err, 2)
+		end
+		return co
+	end
 	env.task = {
-		spawn = function(f, ...)
-			return f(...)
-		end,
-		defer = function(f, ...)
-			return f(...)
-		end,
+		spawn = spawnTask,
+		defer = spawnTask,
 		delay = function() end,
-		wait = function()
-			return 0
+		wait = function(t)
+			if spawned[coroutine.running()] then
+				coroutine.yield()
+			end
+			return t or 0
 		end,
 	}
 	env.tick = os.clock

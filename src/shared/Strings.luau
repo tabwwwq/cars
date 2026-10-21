@@ -1,0 +1,313 @@
+-- Strings: every user-facing text in Russian and English.
+-- The client picks the language from the player's locale (Config.Language = "auto").
+-- Server messages send a key plus arguments; the client formats them.
+
+local Strings = {}
+
+local ru: { [string]: string } = {
+	-- HUD
+	Cash = "Деньги",
+	Garage = "Гараж",
+	Daily = "Награда",
+	DailyReady = "Забрать!",
+	SpeedUnit = "км/ч",
+	Nitro = "НИТРО",
+	GearReverse = "R",
+	HelpOpenGarage = "G — гараж",
+	ControlsTitle = "Управление",
+	ControlsBody = "W/S — газ/тормоз   A/D — руль   Пробел — ручник   Shift — нитро\nR — перевернуть   L — фары   K — сирена   H — гудок   F — выйти   V — камера",
+	ControlsBodyGamepad = "RT/LT — газ/тормоз   Стик — руль   X — ручник   RB — нитро\nD-pad ↑ — перевернуть   B — выйти",
+	ControlsBodyTouch = "Джойстик — руль и газ. Кнопки справа: ручник, нитро, выход.",
+	Flip = "Перевернуть",
+	Exit = "Выйти",
+	Handbrake = "Ручник",
+	Lights = "Фары",
+	Siren = "Сирена",
+	Horn = "Гудок",
+	Camera = "Камера",
+	DriftScore = "ДРИФТ %s°",
+	AirScore = "ПОЛЁТ %ss",
+	-- Garage
+	GarageTitle = "ГАРАЖ",
+	TabCars = "Машины",
+	TabPaint = "Покраска",
+	TabTuning = "Тюнинг",
+	Buy = "Купить %s",
+	Owned = "Куплено",
+	Free = "Бесплатно",
+	Spawn = "Сесть и ехать",
+	Respawn = "Пересоздать",
+	Despawn = "Убрать машину",
+	Close = "Закрыть",
+	Locked = "Не куплено",
+	StatSpeed = "Скорость",
+	StatAccel = "Разгон",
+	StatHandling = "Управляемость",
+	StatOffroad = "Бездорожье",
+	StatNitro = "Нитро",
+	TopSpeed = "Макс. скорость: %s км/ч",
+	DriveType = "Привод: %s",
+	Seats = "Мест: %s",
+	PaintBody = "Кузов",
+	PaintAccent = "Акцент",
+	PaintRims = "Диски",
+	PaintGlow = "Подсветка",
+	PaintFinish = "Покрытие",
+	GlowOff = "Выкл",
+	PriceEach = "Цена: %s",
+	BuyCarFirst = "Сначала купите эту машину",
+	UpgradeEngine = "Двигатель",
+	UpgradeTires = "Шины",
+	UpgradeNitro = "Нитро",
+	UpgradeEngineDesc = "+скорость и разгон",
+	UpgradeTiresDesc = "+сцепление и проходимость",
+	UpgradeNitroDesc = "+мощность и перезарядка",
+	Level = "Уровень %s/%s",
+	Upgrade = "Улучшить %s",
+	MaxLevel = "Максимум",
+	AllClasses = "Все",
+	-- Notifications
+	NotEnoughCash = "Не хватает денег: нужно ещё %s",
+	Purchased = "Куплено: %s!",
+	AlreadyOwned = "Эта машина уже ваша",
+	NotOwned = "Сначала купите эту машину",
+	SpawnCooldown = "Подождите %s с",
+	Spawned = "%s ждёт вас!",
+	CarParked = "Машина убрана",
+	NoSpawnSpace = "Все площадки заняты, попробуйте ещё раз",
+	DailyClaimed = "Ежедневная награда: %s (серия %s)",
+	DailyNotReady = "Следующая награда через %s",
+	Upgraded = "%s: уровень %s",
+	PaintApplied = "Покраска применена",
+	GlowBought = "Подсветка установлена!",
+	DataStudio = "Studio: сохранение отключено (включите API Services, чтобы сохранять)",
+	DataFailed = "Не удалось загрузить сохранение — прогресс не будет записан. Перезайдите.",
+	Welcome = "Добро пожаловать в Cars! Нажмите G, чтобы открыть гараж.",
+	NeedCar = "Сначала заспавните машину в гараже (G)",
+	MustDrive = "Сядьте за руль своей машины, чтобы начать гонку",
+	TooManyRequests = "Слишком часто, подождите секунду",
+	Flipped = "Машина поставлена на колёса",
+	Rescued = "Машина возвращена на площадку",
+	-- Races
+	RaceStart = "Старт",
+	RaceCountdown = "%s",
+	RaceGo = "ВПЕРЁД!",
+	RaceLap = "Круг %s/%s",
+	RaceCheckpoint = "Чекпоинт %s/%s",
+	RaceTime = "Время",
+	RaceBest = "Рекорд",
+	RaceLeave = "Сойти с гонки",
+	RaceFinished = "Финиш! %s",
+	RaceNewRecord = "Новый личный рекорд!",
+	RaceCancelled = "Гонка отменена",
+	RaceTimeout = "Гонка отменена: слишком долго без чекпоинта",
+	RaceInvalid = "Гонка не засчитана: подозрительно быстро",
+	RaceLeftCar = "Гонка отменена: вы вышли из машины",
+	MedalGold = "Золото",
+	MedalSilver = "Серебро",
+	MedalBronze = "Бронза",
+	MedalNone = "Без медали",
+	MedalTargets = "Золото %s · Серебро %s · Бронза %s",
+	RaceReward = "Награда: %s",
+	-- Rewards
+	RewardDistance = "Пробег",
+	RewardDrift = "Дрифт",
+	RewardAir = "Полёт",
+	RewardSpeedTrap = "Радар: %s км/ч",
+	RewardRace = "Гонка",
+	SpeedTrapNoReward = "Радар: %s км/ч",
+	-- World
+	PromptDrive = "Ехать",
+	PromptSit = "Сесть",
+	PromptGarage = "Открыть гараж",
+	PromptRace = "Начать гонку",
+	BoardCash = "САМЫЕ БОГАТЫЕ",
+	BoardSpeed = "РЕКОРДЫ СКОРОСТИ",
+	BoardTrack = "ЛУЧШЕЕ ВРЕМЯ: %s",
+	BoardEmpty = "Пока пусто — будь первым!",
+	SignGarage = "ГАРАЖ",
+	SignRaces = "ГОНКИ",
+	SignStunts = "СТАНТ-ПАРК",
+	SignDrift = "ДРИФТ-АРЕНА",
+	SignCity = "ГОРОД",
+	SignHighway = "ШОССЕ",
+	SignTrail = "БЕЗДОРОЖЬЕ",
+	SignSpeedTrap = "РАДАР",
+	SignWelcome = "CARS",
+	-- Dev
+	DevPanel = "Тест-панель",
+	DevCash = "+100 000",
+	DevReset = "Сбросить прогресс",
+}
+
+local en: { [string]: string } = {
+	Cash = "Cash",
+	Garage = "Garage",
+	Daily = "Daily",
+	DailyReady = "Claim!",
+	SpeedUnit = "km/h",
+	Nitro = "NITRO",
+	GearReverse = "R",
+	HelpOpenGarage = "G — garage",
+	ControlsTitle = "Controls",
+	ControlsBody = "W/S — throttle/brake   A/D — steer   Space — handbrake   Shift — nitro\nR — flip   L — lights   K — siren   H — horn   F — exit   V — camera",
+	ControlsBodyGamepad = "RT/LT — throttle/brake   Stick — steer   X — handbrake   RB — nitro\nD-pad ↑ — flip   B — exit",
+	ControlsBodyTouch = "Thumbstick steers and drives. Buttons on the right: handbrake, nitro, exit.",
+	Flip = "Flip",
+	Exit = "Exit",
+	Handbrake = "Handbrake",
+	Lights = "Lights",
+	Siren = "Siren",
+	Horn = "Horn",
+	Camera = "Camera",
+	DriftScore = "DRIFT %s°",
+	AirScore = "AIR %ss",
+	GarageTitle = "GARAGE",
+	TabCars = "Cars",
+	TabPaint = "Paint",
+	TabTuning = "Tuning",
+	Buy = "Buy %s",
+	Owned = "Owned",
+	Free = "Free",
+	Spawn = "Spawn & drive",
+	Respawn = "Respawn",
+	Despawn = "Park car",
+	Close = "Close",
+	Locked = "Not owned",
+	StatSpeed = "Speed",
+	StatAccel = "Acceleration",
+	StatHandling = "Handling",
+	StatOffroad = "Offroad",
+	StatNitro = "Nitro",
+	TopSpeed = "Top speed: %s km/h",
+	DriveType = "Drive: %s",
+	Seats = "Seats: %s",
+	PaintBody = "Body",
+	PaintAccent = "Accent",
+	PaintRims = "Rims",
+	PaintGlow = "Underglow",
+	PaintFinish = "Finish",
+	GlowOff = "Off",
+	PriceEach = "Price: %s",
+	BuyCarFirst = "Buy this car first",
+	UpgradeEngine = "Engine",
+	UpgradeTires = "Tires",
+	UpgradeNitro = "Nitro",
+	UpgradeEngineDesc = "+top speed and acceleration",
+	UpgradeTiresDesc = "+grip and offroad",
+	UpgradeNitroDesc = "+power and recharge",
+	Level = "Level %s/%s",
+	Upgrade = "Upgrade %s",
+	MaxLevel = "Maxed",
+	AllClasses = "All",
+	NotEnoughCash = "Not enough cash: you need %s more",
+	Purchased = "Purchased: %s!",
+	AlreadyOwned = "You already own this car",
+	NotOwned = "Buy this car first",
+	SpawnCooldown = "Wait %s s",
+	Spawned = "Your %s is ready!",
+	CarParked = "Car parked",
+	NoSpawnSpace = "All spawn pads are busy, try again",
+	DailyClaimed = "Daily reward: %s (streak %s)",
+	DailyNotReady = "Next reward in %s",
+	Upgraded = "%s: level %s",
+	PaintApplied = "Paint applied",
+	GlowBought = "Underglow installed!",
+	DataStudio = "Studio: saving is off (enable API Services to save)",
+	DataFailed = "Could not load your save — progress will not be stored. Please rejoin.",
+	Welcome = "Welcome to Cars! Press G to open the garage.",
+	NeedCar = "Spawn a car in the garage first (G)",
+	MustDrive = "Get behind the wheel of your car to start a race",
+	TooManyRequests = "Too fast, wait a second",
+	Flipped = "Car flipped back onto its wheels",
+	Rescued = "Car returned to a spawn pad",
+	RaceStart = "Start",
+	RaceCountdown = "%s",
+	RaceGo = "GO!",
+	RaceLap = "Lap %s/%s",
+	RaceCheckpoint = "Checkpoint %s/%s",
+	RaceTime = "Time",
+	RaceBest = "Best",
+	RaceLeave = "Leave race",
+	RaceFinished = "Finished! %s",
+	RaceNewRecord = "New personal best!",
+	RaceCancelled = "Race cancelled",
+	RaceTimeout = "Race cancelled: no checkpoint for too long",
+	RaceInvalid = "Race not counted: suspiciously fast",
+	RaceLeftCar = "Race cancelled: you left the car",
+	MedalGold = "Gold",
+	MedalSilver = "Silver",
+	MedalBronze = "Bronze",
+	MedalNone = "No medal",
+	MedalTargets = "Gold %s · Silver %s · Bronze %s",
+	RaceReward = "Reward: %s",
+	RewardDistance = "Distance",
+	RewardDrift = "Drift",
+	RewardAir = "Air",
+	RewardSpeedTrap = "Speed trap: %s km/h",
+	RewardRace = "Race",
+	SpeedTrapNoReward = "Speed trap: %s km/h",
+	PromptDrive = "Drive",
+	PromptSit = "Sit",
+	PromptGarage = "Open garage",
+	PromptRace = "Start race",
+	BoardCash = "RICHEST DRIVERS",
+	BoardSpeed = "TOP SPEED",
+	BoardTrack = "BEST TIMES: %s",
+	BoardEmpty = "Empty — be the first!",
+	SignGarage = "GARAGE",
+	SignRaces = "RACES",
+	SignStunts = "STUNT PARK",
+	SignDrift = "DRIFT ARENA",
+	SignCity = "CITY",
+	SignHighway = "HIGHWAY",
+	SignTrail = "OFFROAD",
+	SignSpeedTrap = "SPEED TRAP",
+	SignWelcome = "CARS",
+	DevPanel = "Test panel",
+	DevCash = "+100,000",
+	DevReset = "Reset progress",
+}
+
+Strings.Tables = { ru = ru, en = en }
+Strings.Language = "ru"
+
+function Strings.setLanguage(lang: string)
+	if Strings.Tables[lang] then
+		Strings.Language = lang
+	end
+end
+
+-- Picks "ru" for Russian-speaking locales, otherwise "en".
+function Strings.languageForLocale(locale: string?): string
+	local l = string.lower(locale or "")
+	if string.sub(l, 1, 2) == "ru" or string.sub(l, 1, 2) == "uk" or string.sub(l, 1, 2) == "be" or string.sub(l, 1, 2) == "kk" then
+		return "ru"
+	end
+	return "en"
+end
+
+function Strings.get(key: string, ...: any): string
+	local text = Strings.Tables[Strings.Language][key] or en[key] or key
+	if select("#", ...) > 0 then
+		local args = table.pack(...)
+		for i = 1, args.n do
+			args[i] = tostring(args[i])
+		end
+		local ok, result = pcall(string.format, text, table.unpack(args, 1, args.n))
+		if ok then
+			return result
+		end
+	end
+	return text
+end
+
+-- Picks the right field of a { ru = ..., en = ... } table.
+function Strings.pick(localized: { ru: string, en: string }?): string
+	if not localized then
+		return ""
+	end
+	return (localized :: any)[Strings.Language] or localized.en
+end
+
+return Strings

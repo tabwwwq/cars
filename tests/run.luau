@@ -76,6 +76,9 @@ for _, file in listdir("tests") do
 			continue
 		end
 		for _, case in specOrErr do
+			if os.getenv and os.getenv("TEST_VERBOSE") then
+				print("  ..   " .. case.name)
+			end
 			local okCase, err = pcall(case.fn)
 			if okCase then
 				passed += 1

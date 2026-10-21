@@ -1,0 +1,44 @@
+---
+# Minimal Roblox globals for selene when the full API dump can't be downloaded.
+# With internet access you can switch selene.toml to std = "roblox".
+base: luau
+globals:
+  game: {any: true}
+  workspace: {any: true}
+  script: {any: true}
+  plugin: {any: true}
+  shared: {any: true}
+  Instance: {any: true}
+  Vector3: {any: true}
+  Vector2: {any: true}
+  CFrame: {any: true}
+  Color3: {any: true}
+  ColorSequence: {any: true}
+  ColorSequenceKeypoint: {any: true}
+  NumberSequence: {any: true}
+  NumberSequenceKeypoint: {any: true}
+  NumberRange: {any: true}
+  UDim: {any: true}
+  UDim2: {any: true}
+  Rect: {any: true}
+  Region3: {any: true}
+  Ray: {any: true}
+  RaycastParams: {any: true}
+  OverlapParams: {any: true}
+  PhysicalProperties: {any: true}
+  TweenInfo: {any: true}
+  Random: {any: true}
+  Enum: {any: true}
+  Font: {any: true}
+  BrickColor: {any: true}
+  DateTime: {any: true}
+  task: {any: true}
+  tick: {any: true}
+  time: {any: true}
+  wait: {any: true}
+  delay: {any: true}
+  spawn: {any: true}
+  warn: {any: true}
+  typeof: {any: true}
+  utf8: {any: true}
+  debug: {any: true}

@@ -1,0 +1,6 @@
+std = "cars_std"
+
+[lints]
+shadowing = "allow"
+unused_variable = "warn"
+multiple_statements = "allow"

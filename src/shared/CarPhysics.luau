@@ -569,16 +569,17 @@ function CarPhysics.step(self: Sim, dtRaw: number, input: Input)
 	for _, w in wheels do
 		local c = w :: any
 		local vF = if w.grounded then (vel + angVel:Cross(c._rt)):Dot(c._fwd) else 0
+		local locked = handbrake and not w.steer -- a locked wheel does not turn
 		if not w.grounded then
 			if w.drive and math.abs(throttle) > 0.05 and not handbrake then
 				w.spin += throttle * 30 * dt
 			end
-		elseif handbrake and not w.steer then
-			-- locked
-		elseif w.slipping and w.drive and driveAccel ~= 0 then
-			w.spin += (vF + math.sign(driveAccel) * 25) / w.radius * dt
-		else
-			w.spin += vF / w.radius * dt
+		elseif not locked then
+			if w.slipping and w.drive and driveAccel ~= 0 then
+				w.spin += (vF + math.sign(driveAccel) * 25) / w.radius * dt
+			else
+				w.spin += vF / w.radius * dt
+			end
 		end
 	end
 
