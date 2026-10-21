@@ -51,12 +51,14 @@ end)
 
 local Controllers = script:WaitForChild("Controllers")
 local ORDER = {
+	"Loading",
 	"Notifications",
 	"Hud",
 	"Drive",
 	"VehicleFX",
 	"Garage",
 	"RaceUI",
+	"Minimap",
 	"WorldText",
 }
 
@@ -127,6 +129,7 @@ ClientState.DrivingChanged = Signal.new() -- (isDriving)
 
 ClientState.telemetry = nil :: any -- CarPhysics telemetry of the own car
 ClientState.racing = false
+ClientState.raceTarget = nil :: Vector3? -- next checkpoint while racing
 
 function ClientState.setProfile(p)
 	ClientState.profile = p
@@ -1717,6 +1720,362 @@ return Hud
         </Item>
         <Item class="ModuleScript" referent="10">
           <Properties>
+            <string name="Name">Loading</string>
+            <string name="Source"><![CDATA[-- Loading: a splash screen shown until the world is built, the save is loaded
+-- and the character has spawned.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("CarsShared")
+local Strings = require(Shared.Strings)
+
+local ClientState = require(script.Parent.Parent.ClientState)
+local Kit = require(script.Parent.Parent.UI.Kit)
+local T = Kit.Theme
+
+local Loading = {}
+
+local gui: ScreenGui
+local spinner: Frame
+
+function Loading.init()
+	gui = Kit.screen("CarsLoading", 100)
+	local back = Kit.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = T.Bg,
+		BorderSizePixel = 0,
+		Parent = gui,
+	})
+	Kit.gradient(back, Color3.fromRGB(40, 46, 70), Color3.fromRGB(10, 12, 20), 90)
+	Kit.label({
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.42),
+		Size = UDim2.new(0, 600, 0, 120),
+		Text = "CARS",
+		Font = T.FontBlack,
+		TextSize = 120,
+		TextColor3 = T.Accent,
+		Parent = back,
+	})
+	Kit.label({
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.55),
+		Size = UDim2.new(0, 700, 0, 30),
+		Text = Strings.get("Loading"),
+		TextSize = 22,
+		TextColor3 = T.Muted,
+		Parent = back,
+	})
+	spinner = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.64),
+		Size = UDim2.new(0, 46, 0, 46),
+		Rotation = 0,
+		BackgroundColor3 = T.Accent,
+		BorderSizePixel = 0,
+		Parent = back,
+	})
+	Kit.corner(spinner, 10)
+end
+
+function Loading.start()
+	local player = Players.LocalPlayer
+	local started = os.clock()
+	local conn
+	conn = RunService.RenderStepped:Connect(function(dt)
+		spinner.Rotation += dt * 220
+		local ready = player.Character ~= nil and ClientState.profile ~= nil
+		if ready or os.clock() - started > 45 then
+			conn:Disconnect()
+			local back = gui:FindFirstChildOfClass("Frame")
+			if back then
+				Kit.tween(back, 0.5, { BackgroundTransparency = 1 })
+				for _, d in back:GetDescendants() do
+					if d:IsA("TextLabel") then
+						Kit.tween(d, 0.4, { TextTransparency = 1 })
+					elseif d:IsA("Frame") then
+						Kit.tween(d, 0.4, { BackgroundTransparency = 1 })
+					end
+				end
+			end
+			task.delay(0.6, function()
+				gui:Destroy()
+			end)
+		end
+	end)
+end
+
+return Loading
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="11">
+          <Properties>
+            <string name="Name">Minimap</string>
+            <string name="Source"><![CDATA[-- Minimap: a round map in the corner that turns with the camera. Shows roads,
+-- the city, race tracks, areas, other cars and the next race checkpoint.
+
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local Shared = ReplicatedStorage:WaitForChild("CarsShared")
+local Layout = require(Shared.WorldLayout)
+local Spline = require(Shared.Util.Spline)
+local Tracks = require(Shared.Tracks)
+
+local ClientState = require(script.Parent.Parent.ClientState)
+local Kit = require(script.Parent.Parent.UI.Kit)
+local T = Kit.Theme
+
+local Minimap = {}
+
+local SIZE = 220
+local SCALE = 0.13 -- pixels per stud
+local HALF = Layout.Half
+
+local root: CanvasGroup
+local pivot: Frame
+local map: Frame
+local arrow: Frame
+local target: Frame
+local dots: { [Model]: Frame } = {}
+
+local function toMap(x: number, z: number): UDim2
+	return UDim2.fromOffset((x + HALF) * SCALE, (z + HALF) * SCALE)
+end
+
+local function line(a: Vector3, b: Vector3, width: number, color: Color3, z: number?)
+	local dx, dz = b.X - a.X, b.Z - a.Z
+	local len = math.sqrt(dx * dx + dz * dz)
+	if len < 1 then
+		return
+	end
+	Kit.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = toMap((a.X + b.X) / 2, (a.Z + b.Z) / 2),
+		Size = UDim2.fromOffset(len * SCALE + width * SCALE, math.max(width * SCALE, 2)),
+		Rotation = math.deg(math.atan2(dz, dx)),
+		BackgroundColor3 = color,
+		BorderSizePixel = 0,
+		ZIndex = z or 2,
+		Parent = map,
+	})
+end
+
+local function rect(center: Vector3, size: Vector2, color: Color3, transparency: number?)
+	Kit.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = toMap(center.X, center.Z),
+		Size = UDim2.fromOffset(size.X * SCALE, size.Y * SCALE),
+		BackgroundColor3 = color,
+		BackgroundTransparency = transparency or 0,
+		BorderSizePixel = 0,
+		ZIndex = 1,
+		Parent = map,
+	})
+end
+
+local function drawWorld()
+	local road = Color3.fromRGB(70, 74, 84)
+	rect(Vector3.zero, Vector2.new(HALF * 2, HALF * 2), Color3.fromRGB(64, 110, 62))
+	-- hills
+	rect(Vector3.new(0, 0, (Layout.SouthHills.start + HALF) / 2), Vector2.new(HALF * 2, HALF - Layout.SouthHills.start), Color3.fromRGB(96, 128, 74))
+	-- areas
+	rect(Layout.Plaza.center, Layout.Plaza.size, Color3.fromRGB(170, 170, 166))
+	rect(Layout.StuntPark.center, Layout.StuntPark.size, Color3.fromRGB(110, 80, 60))
+	rect(Layout.DriftArena.center, Layout.DriftArena.size, Color3.fromRGB(120, 60, 110))
+	rect(Vector3.new(0, 0, -975), Vector2.new(1400, 1050), Color3.fromRGB(120, 124, 134))
+	-- roads
+	for _, r in Layout.Roads do
+		line(r.a, r.b, r.w, road)
+	end
+	for _, x in Layout.CityX do
+		line(Vector3.new(x, 0, -450), Vector3.new(x, 0, -1500), 40, road)
+	end
+	for _, z in Layout.CityZ do
+		line(Vector3.new(-700, 0, z), Vector3.new(700, 0, z), 40, road)
+	end
+	-- tracks
+	for _, t in Tracks.List do
+		if t.surface ~= "existing" then
+			local samples = Spline.sample(t.points, t.kind == "circuit", 60)
+			local color = if t.surface == "dirt" then Color3.fromRGB(150, 110, 70) else Color3.fromRGB(40, 42, 50)
+			for i = 1, #samples - (if t.kind == "circuit" then 0 else 1) do
+				local a = samples[i].pos
+				local b = samples[(i % #samples) + 1].pos
+				line(a, b, t.width, color, 3)
+			end
+		end
+	end
+	-- speed trap
+	rect(Vector3.new(Layout.SpeedTrap.x, 0, Layout.SpeedTrap.z), Vector2.new(30, 80), Color3.fromRGB(230, 60, 60))
+end
+
+local function heading(look: Vector3): number
+	return math.deg(math.atan2(look.X, -look.Z))
+end
+
+local function dotFor(model: Model): Frame
+	local dot = dots[model]
+	if not dot then
+		dot = Kit.new("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Size = UDim2.fromOffset(7, 7),
+			BackgroundColor3 = T.Accent2,
+			BorderSizePixel = 0,
+			ZIndex = 6,
+			Parent = map,
+		})
+		Kit.corner(dot, 4)
+		dots[model] = dot
+	end
+	return dot
+end
+
+function Minimap.init()
+	local gui = Kit.screen("CarsMinimap", 4)
+	root = Kit.new("CanvasGroup", {
+		Name = "Minimap",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -20, 0, 84),
+		Size = UDim2.fromOffset(SIZE, SIZE),
+		BackgroundColor3 = T.Bg,
+		BorderSizePixel = 0,
+		Parent = gui,
+	})
+	Kit.corner(root, SIZE / 2)
+	pivot = Kit.new("Frame", {
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(0, 0),
+		BackgroundTransparency = 1,
+		Rotation = 0,
+		Parent = root,
+	})
+	map = Kit.new("Frame", {
+		Size = UDim2.fromOffset(HALF * 2 * SCALE, HALF * 2 * SCALE),
+		BackgroundTransparency = 1,
+		Parent = pivot,
+	})
+	drawWorld()
+	target = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.fromOffset(12, 12),
+		BackgroundColor3 = T.Gold,
+		BorderSizePixel = 0,
+		Visible = false,
+		ZIndex = 7,
+		Parent = map,
+	})
+	Kit.corner(target, 6)
+	Kit.stroke(target, Color3.new(0, 0, 0), 2, 0.2)
+	-- the player's arrow stays in the middle
+	arrow = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(16, 16),
+		BackgroundTransparency = 1,
+		Rotation = 0,
+		ZIndex = 10,
+		Parent = root,
+	})
+	Kit.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "▲",
+		TextSize = 18,
+		TextColor3 = T.Accent,
+		TextStrokeTransparency = 0.2,
+		ZIndex = 10,
+		Parent = arrow,
+	})
+	-- ring
+	local ring = Kit.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		ZIndex = 11,
+		Parent = root,
+	})
+	Kit.corner(ring, SIZE / 2)
+	Kit.stroke(ring, Color3.new(1, 1, 1), 3, 0.6)
+	Kit.label({
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 4),
+		Size = UDim2.fromOffset(20, 16),
+		Text = "N",
+		TextSize = 13,
+		TextColor3 = T.Muted,
+		ZIndex = 12,
+		Name = "North",
+		Parent = root,
+	})
+end
+
+function Minimap.start()
+	local player = Players.LocalPlayer
+	CollectionService:GetInstanceRemovedSignal("Car"):Connect(function(model)
+		local dot = dots[model :: Model]
+		if dot then
+			dot:Destroy()
+			dots[model :: Model] = nil
+		end
+	end)
+	RunService.RenderStepped:Connect(function()
+		local camera = Workspace.CurrentCamera
+		local character = player.Character
+		local focus = ClientState.car
+		local pos: Vector3? = nil
+		local look: Vector3? = nil
+		if ClientState.driving and focus and focus.PrimaryPart then
+			pos = focus.PrimaryPart.Position
+			look = focus.PrimaryPart.CFrame.LookVector
+		elseif character and character.PrimaryPart then
+			pos = character.PrimaryPart.Position
+			look = character.PrimaryPart.CFrame.LookVector
+		end
+		if not pos or not look or not camera then
+			return
+		end
+		local camHeading = heading(camera.CFrame.LookVector)
+		pivot.Rotation = -camHeading
+		map.Position = UDim2.fromOffset(-(pos.X + HALF) * SCALE, -(pos.Z + HALF) * SCALE)
+		arrow.Rotation = heading(look) - camHeading
+		local north = root:FindFirstChild("North") :: TextLabel?
+		if north then
+			local a = math.rad(-camHeading)
+			local r = SIZE / 2 - 12
+			north.Position = UDim2.new(0.5, math.sin(a) * r, 0.5, -math.cos(a) * r - 8)
+		end
+
+		-- other cars
+		for _, model in CollectionService:GetTagged("Car") do
+			if model:IsA("Model") and model ~= ClientState.car and model.PrimaryPart then
+				local p = model.PrimaryPart.Position
+				local dot = dotFor(model)
+				dot.Position = toMap(p.X, p.Z)
+			end
+		end
+
+		-- race target
+		local t = ClientState.raceTarget
+		if t then
+			target.Visible = true
+			target.Position = toMap(t.X, t.Z)
+		else
+			target.Visible = false
+		end
+	end)
+end
+
+return Minimap
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="12">
+          <Properties>
             <string name="Name">Notifications</string>
             <string name="Source"><![CDATA[-- Notifications: toasts at the top of the screen and "+$" reward popups.
 
@@ -1889,7 +2248,7 @@ return Notifications
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="11">
+        <Item class="ModuleScript" referent="13">
           <Properties>
             <string name="Name">RaceUI</string>
             <string name="Source"><![CDATA[-- RaceUI: countdown, race timer, lap/checkpoint counters, the guide arrow to
@@ -1955,6 +2314,12 @@ local function findGate(trackId: string, index: number): Model?
 		end
 	end
 	return nil
+end
+
+local function setTarget()
+	local r = race
+	local cp = r and r.checkpoints[r.nextIndex]
+	ClientState.raceTarget = if cp then cp.cf.Position else nil
 end
 
 local function clearHighlight()
@@ -2048,6 +2413,7 @@ end
 local function stopRace()
 	race = nil
 	ClientState.racing = false
+	ClientState.raceTarget = nil
 	panel.Visible = false
 	countdownLabel.Visible = false
 	clearHighlight()
@@ -2149,12 +2515,14 @@ local function onState(payload)
 		end
 		updateTexts()
 		highlightGate()
+		setTarget()
 	elseif phase == "racing" and race then
 		race.running = true
 		race.nextIndex = payload.nextIndex or race.nextIndex
 		race.lap = payload.lap or race.lap
 		updateTexts()
 		highlightGate()
+		setTarget()
 	elseif phase == "finished" then
 		lastFinished = payload.trackId
 		stopRace()
@@ -2275,7 +2643,7 @@ return RaceUI
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="12">
+        <Item class="ModuleScript" referent="14">
           <Properties>
             <string name="Name">VehicleFX</string>
             <string name="Source"><![CDATA[-- VehicleFX: everything visual about cars, for every car near the camera:
@@ -2729,7 +3097,7 @@ return VehicleFX
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="13">
+        <Item class="ModuleScript" referent="15">
           <Properties>
             <string name="Name">WorldText</string>
             <string name="Source"><![CDATA[-- WorldText: translates signs, boards and prompts in the world to the
@@ -2850,11 +3218,11 @@ return WorldText
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="14">
+      <Item class="Folder" referent="16">
         <Properties>
           <string name="Name">UI</string>
         </Properties>
-        <Item class="ModuleScript" referent="15">
+        <Item class="ModuleScript" referent="17">
           <Properties>
             <string name="Name">Kit</string>
             <string name="Source"><![CDATA[-- Kit: tiny UI toolkit so every screen shares one look (dark glass panels,
@@ -3095,7 +3463,7 @@ return Kit
         </Item>
       </Item>
     </Item>
-    <Item class="Script" referent="16">
+    <Item class="Script" referent="18">
       <Properties>
         <string name="Name">CarsServer</string>
         <token name="RunContext">0</token>
@@ -3167,11 +3535,11 @@ end
 print("[Server] Cars mode ready")
 ]]></string>
       </Properties>
-      <Item class="Folder" referent="17">
+      <Item class="Folder" referent="19">
         <Properties>
           <string name="Name">Systems</string>
         </Properties>
-        <Item class="ModuleScript" referent="18">
+        <Item class="ModuleScript" referent="20">
           <Properties>
             <string name="Name">Characters</string>
             <string name="Source"><![CDATA[-- Characters: spawns characters only after the world and the save are ready,
@@ -3253,7 +3621,7 @@ return Characters
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="19">
+        <Item class="ModuleScript" referent="21">
           <Properties>
             <string name="Name">DevTools</string>
             <string name="Source"><![CDATA[-- DevTools: gated test helpers (Studio or Config.Admins only) for quick QA:
@@ -3314,7 +3682,7 @@ return DevTools
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="20">
+        <Item class="ModuleScript" referent="22">
           <Properties>
             <string name="Name">Economy</string>
             <string name="Source"><![CDATA[-- Economy: server-side scoring of driving. Pays for distance, drifts and air
@@ -3574,7 +3942,7 @@ return Economy
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="21">
+        <Item class="ModuleScript" referent="23">
           <Properties>
             <string name="Name">Environment</string>
             <string name="Source"><![CDATA[-- Environment: lighting, atmosphere, post effects and the day/night cycle.
@@ -3696,7 +4064,7 @@ return Environment
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="22">
+        <Item class="ModuleScript" referent="24">
           <Properties>
             <string name="Name">Leaderboards</string>
             <string name="Source"><![CDATA[-- Leaderboards: global top lists (OrderedDataStore) for cash, top speed and
@@ -3979,7 +4347,7 @@ return Leaderboards
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="23">
+        <Item class="ModuleScript" referent="25">
           <Properties>
             <string name="Name">PlayerData</string>
             <string name="Source"><![CDATA[-- PlayerData: the only module that touches player DataStores.
@@ -4551,7 +4919,7 @@ return PlayerData
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="24">
+        <Item class="ModuleScript" referent="26">
           <Properties>
             <string name="Name">Races</string>
             <string name="Source"><![CDATA[-- Races: solo time trials on every track. The server teleports the car to the
@@ -4864,7 +5232,7 @@ return Races
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="25">
+        <Item class="ModuleScript" referent="27">
           <Properties>
             <string name="Name">Shop</string>
             <string name="Source"><![CDATA[-- Shop: buying cars, upgrades, paint and the daily reward. Every request is
@@ -5072,7 +5440,7 @@ return Shop
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="26">
+        <Item class="ModuleScript" referent="28">
           <Properties>
             <string name="Name">Vehicles</string>
             <string name="Source"><![CDATA[-- Vehicles: spawning, seating, ownership and driver actions for player cars.
@@ -5613,7 +5981,7 @@ return Vehicles
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="27">
+        <Item class="ModuleScript" referent="29">
           <Properties>
             <string name="Name">World</string>
             <string name="Source"><![CDATA[-- World: builds the map at server start (or uses one baked in Studio) and
@@ -5636,7 +6004,7 @@ local WorldModules = script.Parent.Parent:WaitForChild("World")
 local Build = require(WorldModules.Build)
 local City = require(WorldModules.City)
 local Decor = require(WorldModules.Decor)
-local Layout = require(WorldModules.Layout)
+local Layout = require(Shared.WorldLayout)
 local Plaza = require(WorldModules.Plaza)
 local Roads = require(WorldModules.Roads)
 local Stunts = require(WorldModules.Stunts)
@@ -5779,11 +6147,11 @@ return World
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="28">
+      <Item class="Folder" referent="30">
         <Properties>
           <string name="Name">World</string>
         </Properties>
-        <Item class="ModuleScript" referent="29">
+        <Item class="ModuleScript" referent="31">
           <Properties>
             <string name="Name">Build</string>
             <string name="Source"><![CDATA[-- Build: small helpers for constructing the static world out of anchored parts.
@@ -6000,14 +6368,16 @@ return Build
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="30">
+        <Item class="ModuleScript" referent="32">
           <Properties>
             <string name="Name">City</string>
             <string name="Source"><![CDATA[-- City: downtown blocks between the street grid — sidewalks, skyscrapers,
 -- small parks and parking lots. Deterministic, so every server matches.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Build = require(script.Parent.Build)
-local Layout = require(script.Parent.Layout)
+local Layout = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("WorldLayout"))
 
 local City = {}
 
@@ -6154,13 +6524,15 @@ return City
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="31">
+        <Item class="ModuleScript" referent="33">
           <Properties>
             <string name="Name">Decor</string>
             <string name="Source"><![CDATA[-- Decor: trees, boulders, the speed trap gantry, area signs and map bounds.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Build = require(script.Parent.Build)
-local Layout = require(script.Parent.Layout)
+local Layout = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("WorldLayout"))
 
 local Decor = {}
 
@@ -6353,74 +6725,7 @@ return Decor
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="32">
-          <Properties>
-            <string name="Name">Layout</string>
-            <string name="Source"><![CDATA[-- Layout: where everything in the world lives. All values are world studs,
--- y = 0 is the ground, -Z is north. Roads sit on top of the ground at ROAD_TOP.
-
-local Layout = {}
-
-Layout.Half = 1952 -- terrain half size (multiple of 4)
-Layout.WallHalf = 1940 -- invisible boundary walls
-Layout.RoadTop = 0.2
-
-local function v(x: number, z: number): Vector3
-	return Vector3.new(x, 0, z)
-end
-Layout.v = v
-
--- Areas (center + size on the ground plane)
-Layout.Plaza = { center = v(0, 0), size = Vector2.new(320, 240) }
-Layout.StuntPark = { center = v(-1200, -100), size = Vector2.new(600, 600) }
-Layout.DriftArena = { center = v(700, 0), size = Vector2.new(360, 300) }
-Layout.SpeedTrap = { x = 1500, z = 450, halfWidth = 32 }
-
--- City grid
-Layout.CityX = { -700, -350, 0, 350, 700 }
-Layout.CityZ = { -450, -800, -1150, -1500 }
-Layout.CityStreetWidth = 40
-
--- Road segments { a, b, width, style } ("city" streets are generated from the grid)
-Layout.Roads = {
-	{ a = v(0, -120), b = v(0, -430), w = 44, style = "avenue" },
-	{ a = v(0, 120), b = v(0, 420), w = 44, style = "avenue" },
-	{ a = v(-160, 0), b = v(-900, 0), w = 40, style = "street" },
-	{ a = v(160, 0), b = v(520, 0), w = 40, style = "street" },
-	{ a = v(-1800, 450), b = v(0, 450), w = 60, style = "highway" },
-	{ a = v(0, 450), b = v(1800, 450), w = 60, style = "highway" },
-	{ a = v(-1200, 420), b = v(-1200, 200), w = 40, style = "street" },
-	{ a = v(700, 420), b = v(700, 150), w = 40, style = "street" },
-	{ a = v(1150, 420), b = v(1150, -276), w = 40, style = "street" },
-}
-
--- Spawn pads in the plaza (cars face south, towards the exit)
-Layout.SpawnPads = {}
-for i = 0, 9 do
-	local x = -135 + i * 30
-	table.insert(Layout.SpawnPads, CFrame.new(x, Layout.RoadTop, 82) * CFrame.Angles(0, math.pi, 0))
-end
-
-Layout.PlayerSpawn = v(0, 10)
-Layout.GarageKiosks = { v(-120, 30), v(120, 30) }
-Layout.Showroom = { min = v(-152, -116), max = v(-36, -42) }
-
--- Mesh for terrain hills: masks are 0 on the flat playfield, 1 in the hills.
-Layout.SouthHills = { start = 640, full = 880 }
-Layout.NorthHills = { start = -1620, full = -1780 }
-Layout.Rim = { width = 140, height = 70 }
-
--- Driving zones with bonus rewards
-Layout.Zones = {
-	drift = { center = Layout.DriftArena.center, size = Vector3.new(360, 60, 300), multiplier = 2 },
-	stunt = { center = Layout.StuntPark.center, size = Vector3.new(600, 400, 600), multiplier = 2 },
-}
-
-return Layout
-]]></string>
-          </Properties>
-        </Item>
-        <Item class="ModuleScript" referent="33">
+        <Item class="ModuleScript" referent="34">
           <Properties>
             <string name="Name">Plaza</string>
             <string name="Source"><![CDATA[-- Plaza: the spawn hub. Dealership showroom with rotating cars, spawn pads,
@@ -6429,9 +6734,9 @@ return Layout
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Build = require(script.Parent.Build)
-local Layout = require(script.Parent.Layout)
 
 local Shared = ReplicatedStorage:WaitForChild("CarsShared")
+local Layout = require(Shared.WorldLayout)
 local CarBuilder = require(Shared.CarBuilder)
 local CarCatalog = require(Shared.CarCatalog)
 local Tracks = require(Shared.Tracks)
@@ -6811,13 +7116,15 @@ return Plaza
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="34">
+        <Item class="ModuleScript" referent="35">
           <Properties>
             <string name="Name">Roads</string>
             <string name="Source"><![CDATA[-- Roads: asphalt network with markings, intersections, curbs and street lamps.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Build = require(script.Parent.Build)
-local Layout = require(script.Parent.Layout)
+local Layout = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("WorldLayout"))
 
 local Roads = {}
 
@@ -7013,14 +7320,16 @@ return Roads
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="35">
+        <Item class="ModuleScript" referent="36">
           <Properties>
             <string name="Name">Stunts</string>
             <string name="Source"><![CDATA[-- Stunts: the stunt park (kickers, a bus jump, a mega ramp, quarter pipes,
 -- bumps) and the drift arena (skid pads, cones, tire walls, grandstand).
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Build = require(script.Parent.Build)
-local Layout = require(script.Parent.Layout)
+local Layout = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("WorldLayout"))
 
 local Stunts = {}
 
@@ -7258,7 +7567,7 @@ return Stunts
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="36">
+        <Item class="ModuleScript" referent="37">
           <Properties>
             <string name="Name">TerrainGen</string>
             <string name="Source"><![CDATA[-- TerrainGen: grass base, rolling hills (south/north), a mountain rim around
@@ -7266,7 +7575,10 @@ return Stunts
 -- Heights come from layered math.noise and are written with WriteVoxels
 -- in 64-stud chunks; chunks that are completely flat are skipped.
 
-local Layout = require(script.Parent.Layout)
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Layout = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("WorldLayout"))
 
 local TerrainGen = {}
 
@@ -7512,7 +7824,7 @@ return TerrainGen
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="37">
+        <Item class="ModuleScript" referent="38">
           <Properties>
             <string name="Name">TrackBuilder</string>
             <string name="Source"><![CDATA[-- TrackBuilder: lays the circuit road from its spline, builds checkpoint gates
@@ -7521,9 +7833,9 @@ return TerrainGen
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Build = require(script.Parent.Build)
-local Layout = require(script.Parent.Layout)
 
 local Shared = ReplicatedStorage:WaitForChild("CarsShared")
+local Layout = require(Shared.WorldLayout)
 local Spline = require(Shared.Util.Spline)
 local Tracks = require(Shared.Tracks)
 
@@ -7779,11 +8091,11 @@ return TrackBuilder
         </Item>
       </Item>
     </Item>
-    <Item class="Folder" referent="38">
+    <Item class="Folder" referent="39">
       <Properties>
         <string name="Name">CarsShared</string>
       </Properties>
-      <Item class="ModuleScript" referent="39">
+      <Item class="ModuleScript" referent="40">
         <Properties>
           <string name="Name">CarBuilder</string>
           <string name="Source"><![CDATA[-- CarBuilder: turns a CarCatalog definition into a drivable Model made of parts.
@@ -9818,7 +10130,7 @@ return CarBuilder
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="40">
+      <Item class="ModuleScript" referent="41">
         <Properties>
           <string name="Name">CarCatalog</string>
           <string name="Source"><![CDATA[-- CarCatalog: every car in the game, described as data.
@@ -10905,7 +11217,7 @@ return CarCatalog
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="41">
+      <Item class="ModuleScript" referent="42">
         <Properties>
           <string name="Name">CarPhysics</string>
           <string name="Source"><![CDATA[-- CarPhysics: arcade raycast vehicle simulation.
@@ -11629,7 +11941,7 @@ return CarPhysics
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="42">
+      <Item class="ModuleScript" referent="43">
         <Properties>
           <string name="Name">Config</string>
           <string name="Source"><![CDATA[-- Config: all gameplay tunables in one place.
@@ -11833,7 +12145,7 @@ return Config
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="43">
+      <Item class="ModuleScript" referent="44">
         <Properties>
           <string name="Name">Net</string>
           <string name="Source"><![CDATA[-- Net: the one place where remotes are declared, created and wired.
@@ -12022,7 +12334,7 @@ return Net
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="44">
+      <Item class="ModuleScript" referent="45">
         <Properties>
           <string name="Name">Paints</string>
           <string name="Source"><![CDATA[-- Paints: color palette and paint finishes shared by the builder, garage UI and server validation.
@@ -12103,7 +12415,7 @@ return Paints
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="45">
+      <Item class="ModuleScript" referent="46">
         <Properties>
           <string name="Name">Strings</string>
           <string name="Source"><![CDATA[-- Strings: every user-facing text in Russian and English.
@@ -12242,6 +12554,7 @@ local ru: { [string]: string } = {
 	SignTrail = "БЕЗДОРОЖЬЕ",
 	SignSpeedTrap = "РАДАР",
 	SignWelcome = "CARS",
+	Loading = "Строим мир и загружаем гараж…",
 	-- Dev
 	DevPanel = "Тест-панель",
 	DevCash = "+100 000",
@@ -12372,6 +12685,7 @@ local en: { [string]: string } = {
 	SignTrail = "OFFROAD",
 	SignSpeedTrap = "SPEED TRAP",
 	SignWelcome = "CARS",
+	Loading = "Building the world and loading your garage…",
 	DevPanel = "Test panel",
 	DevCash = "+100,000",
 	DevReset = "Reset progress",
@@ -12422,7 +12736,7 @@ return Strings
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="46">
+      <Item class="ModuleScript" referent="47">
         <Properties>
           <string name="Name">Tracks</string>
           <string name="Source"><![CDATA[-- Tracks: race routes. The World builds roads for "road"/"dirt" surfaces from
@@ -12572,7 +12886,7 @@ return Tracks
 ]]></string>
         </Properties>
       </Item>
-      <Item class="ModuleScript" referent="47">
+      <Item class="ModuleScript" referent="48">
         <Properties>
           <string name="Name">Types</string>
           <string name="Source"><![CDATA[-- Types: shared type definitions that cross the client/server boundary.
@@ -12729,11 +13043,11 @@ return {}
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Folder" referent="48">
+      <Item class="Folder" referent="49">
         <Properties>
           <string name="Name">Util</string>
         </Properties>
-        <Item class="ModuleScript" referent="49">
+        <Item class="ModuleScript" referent="50">
           <Properties>
             <string name="Name">Format</string>
             <string name="Source"><![CDATA[-- Format: number/time/speed formatting shared by the HUD, garage and boards.
@@ -12785,7 +13099,7 @@ return Format
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="50">
+        <Item class="ModuleScript" referent="51">
           <Properties>
             <string name="Name">Signal</string>
             <string name="Source"><![CDATA[-- Signal: a tiny synchronous event object for module-to-module communication.
@@ -12843,7 +13157,7 @@ return Signal
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="51">
+        <Item class="ModuleScript" referent="52">
           <Properties>
             <string name="Name">Spline</string>
             <string name="Source"><![CDATA[-- Spline: Catmull-Rom curves used to lay out race tracks and their checkpoints.
@@ -12909,8 +13223,75 @@ return Spline
           </Properties>
         </Item>
       </Item>
+      <Item class="ModuleScript" referent="53">
+        <Properties>
+          <string name="Name">WorldLayout</string>
+          <string name="Source"><![CDATA[-- Layout: where everything in the world lives. All values are world studs,
+-- y = 0 is the ground, -Z is north. Roads sit on top of the ground at ROAD_TOP.
+
+local Layout = {}
+
+Layout.Half = 1952 -- terrain half size (multiple of 4)
+Layout.WallHalf = 1940 -- invisible boundary walls
+Layout.RoadTop = 0.2
+
+local function v(x: number, z: number): Vector3
+	return Vector3.new(x, 0, z)
+end
+Layout.v = v
+
+-- Areas (center + size on the ground plane)
+Layout.Plaza = { center = v(0, 0), size = Vector2.new(320, 240) }
+Layout.StuntPark = { center = v(-1200, -100), size = Vector2.new(600, 600) }
+Layout.DriftArena = { center = v(700, 0), size = Vector2.new(360, 300) }
+Layout.SpeedTrap = { x = 1500, z = 450, halfWidth = 32 }
+
+-- City grid
+Layout.CityX = { -700, -350, 0, 350, 700 }
+Layout.CityZ = { -450, -800, -1150, -1500 }
+Layout.CityStreetWidth = 40
+
+-- Road segments { a, b, width, style } ("city" streets are generated from the grid)
+Layout.Roads = {
+	{ a = v(0, -120), b = v(0, -430), w = 44, style = "avenue" },
+	{ a = v(0, 120), b = v(0, 420), w = 44, style = "avenue" },
+	{ a = v(-160, 0), b = v(-900, 0), w = 40, style = "street" },
+	{ a = v(160, 0), b = v(520, 0), w = 40, style = "street" },
+	{ a = v(-1800, 450), b = v(0, 450), w = 60, style = "highway" },
+	{ a = v(0, 450), b = v(1800, 450), w = 60, style = "highway" },
+	{ a = v(-1200, 420), b = v(-1200, 200), w = 40, style = "street" },
+	{ a = v(700, 420), b = v(700, 150), w = 40, style = "street" },
+	{ a = v(1150, 420), b = v(1150, -276), w = 40, style = "street" },
+}
+
+-- Spawn pads in the plaza (cars face south, towards the exit)
+Layout.SpawnPads = {}
+for i = 0, 9 do
+	local x = -135 + i * 30
+	table.insert(Layout.SpawnPads, CFrame.new(x, Layout.RoadTop, 82) * CFrame.Angles(0, math.pi, 0))
+end
+
+Layout.PlayerSpawn = v(0, 10)
+Layout.GarageKiosks = { v(-120, 30), v(120, 30) }
+Layout.Showroom = { min = v(-152, -116), max = v(-36, -42) }
+
+-- Mesh for terrain hills: masks are 0 on the flat playfield, 1 in the hills.
+Layout.SouthHills = { start = 640, full = 880 }
+Layout.NorthHills = { start = -1620, full = -1780 }
+Layout.Rim = { width = 140, height = 70 }
+
+-- Driving zones with bonus rewards
+Layout.Zones = {
+	drift = { center = Layout.DriftArena.center, size = Vector3.new(360, 60, 300), multiplier = 2 },
+	stunt = { center = Layout.StuntPark.center, size = Vector3.new(600, 400, 600), multiplier = 2 },
+}
+
+return Layout
+]]></string>
+        </Properties>
+      </Item>
     </Item>
-    <Item class="ModuleScript" referent="52">
+    <Item class="ModuleScript" referent="54">
       <Properties>
         <string name="Name">Installer</string>
         <string name="Source"><![CDATA[-- Installer for an existing place. In Roblox Studio:

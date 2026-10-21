@@ -19,6 +19,7 @@ ClientState.DrivingChanged = Signal.new() -- (isDriving)
 
 ClientState.telemetry = nil :: any -- CarPhysics telemetry of the own car
 ClientState.racing = false
+ClientState.raceTarget = nil :: Vector3? -- next checkpoint while racing
 
 function ClientState.setProfile(p)
 	ClientState.profile = p

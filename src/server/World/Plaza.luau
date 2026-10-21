@@ -4,9 +4,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Build = require(script.Parent.Build)
-local Layout = require(script.Parent.Layout)
 
 local Shared = ReplicatedStorage:WaitForChild("CarsShared")
+local Layout = require(Shared.WorldLayout)
 local CarBuilder = require(Shared.CarBuilder)
 local CarCatalog = require(Shared.CarCatalog)
 local Tracks = require(Shared.Tracks)

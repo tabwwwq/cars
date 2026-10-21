@@ -33,7 +33,7 @@ committing, and commit the rebuilt `build/` files (the user opens them directly 
 
 | Source | In Roblox | Contents |
 | --- | --- | --- |
-| `src/shared` | `ReplicatedStorage.CarsShared` | Config, CarCatalog, CarBuilder, CarPhysics, Paints, Strings, Tracks, Net, Types, Util/* |
+| `src/shared` | `ReplicatedStorage.CarsShared` | Config, CarCatalog, CarBuilder, CarPhysics, Paints, Strings, Tracks, WorldLayout, Net, Types, Util/* |
 | `src/server` | `ServerScriptService.CarsServer` (Script) | `init.server.luau` bootstrap, `Systems/*` (one module per system), `World/*` (map builders) |
 | `src/client` | `StarterPlayerScripts.CarsClient` (LocalScript) | `init.client.luau`, `ClientState`, `Controllers/*`, `UI/Kit` |
 | `assets` | `ReplicatedStorage.CarsAssets` | optional template car bodies (`Cars/<Name>`) |

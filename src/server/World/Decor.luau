@@ -1,7 +1,9 @@
 -- Decor: trees, boulders, the speed trap gantry, area signs and map bounds.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Build = require(script.Parent.Build)
-local Layout = require(script.Parent.Layout)
+local Layout = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("WorldLayout"))
 
 local Decor = {}
 

@@ -1,7 +1,9 @@
 -- Roads: asphalt network with markings, intersections, curbs and street lamps.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Build = require(script.Parent.Build)
-local Layout = require(script.Parent.Layout)
+local Layout = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("WorldLayout"))
 
 local Roads = {}
 

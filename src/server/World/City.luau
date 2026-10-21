@@ -1,8 +1,10 @@
 -- City: downtown blocks between the street grid — sidewalks, skyscrapers,
 -- small parks and parking lots. Deterministic, so every server matches.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Build = require(script.Parent.Build)
-local Layout = require(script.Parent.Layout)
+local Layout = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("WorldLayout"))
 
 local City = {}
 

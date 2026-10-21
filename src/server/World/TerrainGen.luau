@@ -3,7 +3,10 @@
 -- Heights come from layered math.noise and are written with WriteVoxels
 -- in 64-stud chunks; chunks that are completely flat are skipped.
 
-local Layout = require(script.Parent.Layout)
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Layout = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("WorldLayout"))
 
 local TerrainGen = {}
 

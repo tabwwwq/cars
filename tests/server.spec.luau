@@ -25,7 +25,7 @@ Net.init()
 
 test("terrain height function is smooth and flat on the playfield", function()
 	local TerrainGen = world.require(WorldModules.TerrainGen)
-	local Layout = world.require(WorldModules.Layout)
+	local Layout = world.require(world.shared.WorldLayout)
 	-- flat where we drive
 	for _, p in { Vector3.new(0, 0, 0), Vector3.new(1300, 0, -700), Vector3.new(-1200, 0, -100), Vector3.new(0, 0, 450), Vector3.new(0, 0, -1000) } do
 		local h = TerrainGen.rawHeight(p.X, p.Z)
@@ -147,7 +147,7 @@ end)
 
 test("nothing solid stands on the roads or race tracks", function()
 	assertTrue(builtRoot ~= nil, "world not built")
-	local Layout = world.require(WorldModules.Layout)
+	local Layout = world.require(world.shared.WorldLayout)
 	local Spline = world.require(world.shared.Util.Spline)
 	local Tracks = world.require(world.shared.Tracks)
 
@@ -239,7 +239,7 @@ test("nothing solid stands on the roads or race tracks", function()
 end)
 
 test("spawn pads do not overlap the plaza furniture", function()
-	local Layout = world.require(WorldModules.Layout)
+	local Layout = world.require(world.shared.WorldLayout)
 	for i, a in Layout.SpawnPads do
 		for j, b in Layout.SpawnPads do
 			if i ~= j then

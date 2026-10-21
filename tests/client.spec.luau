@@ -41,7 +41,7 @@ local Net = world.require(world.shared.Net)
 Net.init() -- the client reuses the folder the server would create
 
 local controllers = {}
-local ORDER = { "Notifications", "Hud", "Drive", "VehicleFX", "Garage", "RaceUI", "WorldText" }
+local ORDER = { "Loading", "Notifications", "Hud", "Drive", "VehicleFX", "Garage", "RaceUI", "Minimap", "WorldText" }
 
 local function fire(service, event, ...)
 	game:GetService(service)[event]:Fire(...)

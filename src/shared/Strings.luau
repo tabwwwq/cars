@@ -134,6 +134,7 @@ local ru: { [string]: string } = {
 	SignTrail = "БЕЗДОРОЖЬЕ",
 	SignSpeedTrap = "РАДАР",
 	SignWelcome = "CARS",
+	Loading = "Строим мир и загружаем гараж…",
 	-- Dev
 	DevPanel = "Тест-панель",
 	DevCash = "+100 000",
@@ -264,6 +265,7 @@ local en: { [string]: string } = {
 	SignTrail = "OFFROAD",
 	SignSpeedTrap = "SPEED TRAP",
 	SignWelcome = "CARS",
+	Loading = "Building the world and loading your garage…",
 	DevPanel = "Test panel",
 	DevCash = "+100,000",
 	DevReset = "Reset progress",

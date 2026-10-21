@@ -23,12 +23,14 @@ end)
 
 local Controllers = script:WaitForChild("Controllers")
 local ORDER = {
+	"Loading",
 	"Notifications",
 	"Hud",
 	"Drive",
 	"VehicleFX",
 	"Garage",
 	"RaceUI",
+	"Minimap",
 	"WorldText",
 }
 

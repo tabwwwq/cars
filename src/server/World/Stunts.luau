@@ -1,8 +1,10 @@
 -- Stunts: the stunt park (kickers, a bus jump, a mega ramp, quarter pipes,
 -- bumps) and the drift arena (skid pads, cones, tire walls, grandstand).
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Build = require(script.Parent.Build)
-local Layout = require(script.Parent.Layout)
+local Layout = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("WorldLayout"))
 
 local Stunts = {}
 

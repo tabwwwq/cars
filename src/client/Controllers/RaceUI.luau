@@ -63,6 +63,12 @@ local function findGate(trackId: string, index: number): Model?
 	return nil
 end
 
+local function setTarget()
+	local r = race
+	local cp = r and r.checkpoints[r.nextIndex]
+	ClientState.raceTarget = if cp then cp.cf.Position else nil
+end
+
 local function clearHighlight()
 	if highlight then
 		highlight:Destroy()
@@ -154,6 +160,7 @@ end
 local function stopRace()
 	race = nil
 	ClientState.racing = false
+	ClientState.raceTarget = nil
 	panel.Visible = false
 	countdownLabel.Visible = false
 	clearHighlight()
@@ -255,12 +262,14 @@ local function onState(payload)
 		end
 		updateTexts()
 		highlightGate()
+		setTarget()
 	elseif phase == "racing" and race then
 		race.running = true
 		race.nextIndex = payload.nextIndex or race.nextIndex
 		race.lap = payload.lap or race.lap
 		updateTexts()
 		highlightGate()
+		setTarget()
 	elseif phase == "finished" then
 		lastFinished = payload.trackId
 		stopRace()
