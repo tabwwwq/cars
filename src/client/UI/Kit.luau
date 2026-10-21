@@ -207,7 +207,7 @@ function Kit.screen(name: string, displayOrder: number?): (ScreenGui, UIScale)
 			return
 		end
 		local vp = camera.ViewportSize
-		scale.Scale = math.clamp(math.min(vp.X / 1500, vp.Y / 860), 0.55, 1.35)
+		scale.Scale = math.clamp(math.min(vp.X / 1500, vp.Y / 860), 0.38, 1.35)
 	end
 	update()
 	local function watch()

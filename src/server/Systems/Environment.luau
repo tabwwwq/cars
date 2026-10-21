@@ -53,6 +53,10 @@ function Environment.init()
 	Lighting.GlobalShadows = true
 	Lighting.ShadowSoftness = 0.25
 	Lighting.GeographicLatitude = 35
+	-- realistic lighting (the successor of Technology = Future); pcall for older engines
+	pcall(function()
+		(Lighting :: any).LightingStyle = Enum.LightingStyle.Realistic
+	end)
 
 	local atmosphere = ensure("Atmosphere", "CarsAtmosphere") :: Atmosphere
 	atmosphere.Density = 0.28

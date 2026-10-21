@@ -11,6 +11,18 @@ local Characters = {}
 
 local RESPAWN_DELAY = 3
 
+-- LoadCharacterAsync replaces the deprecated LoadCharacter on newer engines.
+local function loadCharacter(player: Player)
+	local hasAsync, method = pcall(function()
+		return (player :: any).LoadCharacterAsync
+	end)
+	if hasAsync and typeof(method) == "function" then
+		method(player)
+	else
+		(player :: any):LoadCharacter() -- api-ok: fallback for older engines
+	end
+end
+
 local function setGroup(part: Instance)
 	if part:IsA("BasePart") then
 		part.CollisionGroup = "Players"
@@ -27,7 +39,7 @@ local function onCharacter(player: Player, character: Model)
 		hum.Died:Connect(function()
 			task.delay(RESPAWN_DELAY, function()
 				if player.Parent and player.Character == character then
-					player:LoadCharacter()
+					loadCharacter(player)
 				end
 			end)
 		end)
@@ -46,7 +58,7 @@ local function onPlayer(player: Player)
 	PlayerData.waitFor(player, 60)
 	if player.Parent then
 		-- (re)spawn on the plaza now that the world exists
-		player:LoadCharacter()
+		loadCharacter(player)
 	end
 end
 

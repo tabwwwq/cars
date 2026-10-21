@@ -30,7 +30,6 @@
     },
     "Lighting": {
       "$properties": {
-        "Technology": "Future",
         "GlobalShadows": true
       }
     },

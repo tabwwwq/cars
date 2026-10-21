@@ -22,3 +22,8 @@ jobs:
 
       - name: Run tests (car builder, physics, server, client)
         run: tools/test.sh
+
+      - name: Check Roblox API usage (classes, properties, methods, enums)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/MaximumADHD/Roblox-Client-Tracker/roblox/Full-API-Dump.json -o "$RUNNER_TEMP/api.json"
+          python3 tools/check_api.py "$RUNNER_TEMP/api.json" src

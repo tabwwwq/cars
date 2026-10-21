@@ -57,6 +57,7 @@ test("terrain height function is smooth and flat on the playfield", function()
 end)
 
 local builtRoot
+local builtTracks
 test("the whole world builds without errors", function()
 	local Build = world.require(WorldModules.Build)
 	local Roads = world.require(WorldModules.Roads)
@@ -89,6 +90,7 @@ test("the whole world builds without errors", function()
 	end
 	Decor.build(root, trees, paths)
 	builtRoot = root
+	builtTracks = data
 
 	local parts = 0
 	for _, d in root:GetDescendants() do
@@ -141,6 +143,99 @@ test("the whole world builds without errors", function()
 		end
 	end
 	writefile("tests/out/map.json", '{"parts":[' .. table.concat(out, ",") .. '],"checkpoints":[' .. table.concat(cps, ",") .. "]}")
+end)
+
+test("nothing solid stands on the roads or race tracks", function()
+	assertTrue(builtRoot ~= nil, "world not built")
+	local Layout = world.require(WorldModules.Layout)
+	local Spline = world.require(world.shared.Util.Spline)
+	local Tracks = world.require(world.shared.Tracks)
+
+	-- drivable rectangles: { center (x,z), dir (unit x,z), halfLen, halfWidth, name }
+	local lanes = {}
+	local function lane(a, b, w, name)
+		local d = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
+		local len = d.Magnitude
+		if len < 1 then
+			return
+		end
+		table.insert(lanes, { c = (a + b) / 2, u = d / len, hl = len / 2, hw = w / 2 - 1.5, name = name })
+	end
+	for _, r in Layout.Roads do
+		lane(r.a, r.b, r.w, "road")
+	end
+	for _, x in Layout.CityX do
+		lane(Vector3.new(x, 0, -450), Vector3.new(x, 0, -1500), if x == 0 then 44 else 40, "street x=" .. x)
+	end
+	for _, z in Layout.CityZ do
+		lane(Vector3.new(-700, 0, z), Vector3.new(700, 0, z), 40, "street z=" .. z)
+	end
+	local trail = Tracks.get("trail")
+	local trailSamples = Spline.sample(trail.points, false, 12)
+	for i = 1, #trailSamples - 1 do
+		lane(trailSamples[i].pos, trailSamples[i + 1].pos, trail.width, "trail")
+	end
+	local circuit = Tracks.get("circuit")
+	local samples = Spline.sample(circuit.points, true, 14)
+	for i = 1, #samples do
+		local a, b = samples[i].pos, samples[(i % #samples) + 1].pos
+		lane(a, b, circuit.width, "circuit")
+	end
+
+	local SURFACE = {
+		Road = true,
+		Junction = true,
+		Marking = true,
+		Track = true,
+		Strip = true,
+		Sidewalk = true,
+		PlazaFloor = true,
+		StartLine = true,
+		ParkFloor = true,
+		ArenaFloor = true,
+		Parking = true,
+	}
+	local function overlaps(part, l)
+		-- separating axis test of the part's footprint against the lane rectangle
+		local cf, size = part.CFrame, part.Size
+		local px, pz = cf.Position.X, cf.Position.Z
+		local rx = cf.RightVector
+		local lz = cf.LookVector
+		local ax1 = Vector3.new(rx.X, 0, rx.Z)
+		local ax2 = Vector3.new(lz.X, 0, lz.Z)
+		local h1, h2 = size.X / 2, size.Z / 2
+		local u = l.u
+		local v = Vector3.new(-u.Z, 0, u.X)
+		local d = Vector3.new(px - l.c.X, 0, pz - l.c.Z)
+		for _, axis in { u, v, ax1.Magnitude > 1e-3 and ax1.Unit or u, ax2.Magnitude > 1e-3 and ax2.Unit or v } do
+			local rp = math.abs(ax1:Dot(axis)) * h1 + math.abs(ax2:Dot(axis)) * h2
+			local rl = math.abs(u:Dot(axis)) * l.hl + math.abs(v:Dot(axis)) * l.hw
+			if math.abs(d:Dot(axis)) > rp + rl then
+				return false
+			end
+		end
+		return true
+	end
+	local hits = {}
+	for _, part in builtRoot:GetDescendants() do
+		if part:IsA("BasePart") and part.CanCollide and part.Transparency < 1 and not SURFACE[part.Name] then
+			local top = part.CFrame.Position.Y + part.Size.Y / 2
+			local bottom = part.CFrame.Position.Y - part.Size.Y / 2
+			if top > 0.9 and bottom < 12 then
+				local p = part.CFrame.Position
+				for _, l in lanes do
+					local reach = l.hl + l.hw + part.Size.Magnitude
+					if (Vector3.new(p.X, 0, p.Z) - l.c).Magnitude < reach and overlaps(part, l) then
+						table.insert(hits, string.format("%s at (%.0f, %.0f) blocks %s", part:GetFullName(), p.X, p.Z, l.name))
+						break
+					end
+				end
+			end
+		end
+	end
+	if #hits > 0 then
+		error(#hits .. " obstacles on roads:\n        " .. table.concat(hits, "\n        ", 1, math.min(#hits, 25)))
+	end
 end)
 
 test("spawn pads do not overlap the plaza furniture", function()

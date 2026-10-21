@@ -164,7 +164,7 @@ function Decor.build(root: Instance, cityTrees: { Vector3 }, paths: { { points: 
 
 	-- area signs
 	Build.sign(folder, CFrame.new(-1030, TOP, 492) * CFrame.Angles(0, math.pi / 2, 0), 26, 6, "OFFROAD", "SignTrail", Color3.fromRGB(110, 80, 30))
-	Build.sign(folder, CFrame.new(1330, TOP, 380) * CFrame.Angles(0, math.pi / 2, 0), 26, 6, "RACES", "SignRaces", Color3.fromRGB(20, 60, 90))
+	Build.sign(folder, CFrame.new(1180, TOP, 380) * CFrame.Angles(0, math.pi / 2, 0), 26, 6, "RACES", "SignRaces", Color3.fromRGB(20, 60, 90))
 	Build.sign(folder, CFrame.new(-1600, TOP, 410), 26, 6, "HIGHWAY", "SignHighway", Color3.fromRGB(20, 90, 50))
 
 	-- invisible map bounds

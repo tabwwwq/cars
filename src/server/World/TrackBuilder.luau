@@ -207,7 +207,10 @@ function TrackBuilder.build(root: Instance, trailHeights: { number }?, trailSamp
 				local p = track.points[i]
 				local prev = track.points[i - 1]
 				local dir = flat(p - prev).Unit
-				local pos = Vector3.new(p.X, TOP, p.Z)
+				-- these tracks use the street grid: put the gate just before the
+				-- junction so its pillars don't stand in the cross street
+				local back = math.min(34, (p - prev).Magnitude * 0.4)
+				local pos = Vector3.new(p.X, TOP, p.Z) - dir * back
 				table.insert(cps, { cf = CFrame.lookAt(pos, pos + dir), width = gateWidth, index = #cps + 1 })
 			end
 		end

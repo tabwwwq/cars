@@ -33,7 +33,7 @@ Layout.Roads = {
 	{ a = v(0, 450), b = v(1800, 450), w = 60, style = "highway" },
 	{ a = v(-1200, 420), b = v(-1200, 200), w = 40, style = "street" },
 	{ a = v(700, 420), b = v(700, 150), w = 40, style = "street" },
-	{ a = v(1300, 420), b = v(1300, -276), w = 40, style = "street" },
+	{ a = v(1150, 420), b = v(1150, -276), w = 40, style = "street" },
 }
 
 -- Spawn pads in the plaza (cars face south, towards the exit)

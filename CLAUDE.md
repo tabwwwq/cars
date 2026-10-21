@@ -19,9 +19,14 @@ tools/test.sh physics    # one spec file (cars | physics | server | client)
 tools/build.sh           # rojo build -> build/CarsGame.rbxlx (place) + build/CarsMode.rbxmx (installer model)
 tools/render.sh          # docs/cars.png + docs/map.png from the dumps the tests write to tests/out/
 selene src && stylua --check src tests
+python3 tools/check_api.py <Full-API-Dump.json> src   # class/property/method/enum names vs the real Roblox API
 ```
 
-Always run `tools/test.sh`, `selene src`, `stylua src tests` and `tools/build.sh` before
+The API dump is at
+`https://raw.githubusercontent.com/MaximumADHD/Roblox-Client-Tracker/roblox/Full-API-Dump.json`
+(CI downloads it). Add `-- api-ok` to a line to silence an intentional fallback.
+
+Always run `tools/test.sh`, `selene src`, `stylua src tests`, the API check and `tools/build.sh` before
 committing, and commit the rebuilt `build/` files (the user opens them directly in Studio).
 
 ## Layout (default.project.json)
@@ -75,6 +80,8 @@ Instances are property bags, DataStores are in memory). `tests/harness/carsim.lu
 is a small rigid-body simulator used to drive every car through settle / accelerate /
 brake / corner / slalom / drift / slope / jump / FPS-independence scenarios.
 When changing `CarPhysics` or car stats, run `tools/test.sh physics`.
+`tests/server.spec.luau` also builds the whole map and fails if anything solid stands
+on a road, street, the circuit or the dirt trail — keep it green when moving things.
 For visual checks of car shapes run the tests, then `python3 tools/render_cars.py
 tests/out/cars.json /tmp/out.png <id,id>` and look at the image.
 

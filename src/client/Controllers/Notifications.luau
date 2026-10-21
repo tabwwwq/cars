@@ -136,7 +136,7 @@ function Notifications.init()
 	toastHolder = Kit.new("Frame", {
 		Name = "Toasts",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 70),
+		Position = UDim2.new(0.5, 0, 0, 200), -- below the race panel
 		Size = UDim2.new(0, 460, 0, 300),
 		BackgroundTransparency = 1,
 		Parent = gui,
