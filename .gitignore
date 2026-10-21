@@ -1,0 +1,9 @@
+# build outputs
+/build/
+tests/out/
+tools/luau-runner/target/
+*.rbxlx.lock
+*.rbxl.lock
+sourcemap.json
+.DS_Store
+__pycache__/
