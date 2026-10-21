@@ -4,7 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
+local Net = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("Net"))
 
 local Systems = script:WaitForChild("Systems")
 

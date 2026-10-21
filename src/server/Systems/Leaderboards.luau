@@ -7,7 +7,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Shared = ReplicatedStorage:WaitForChild("CarsShared")
 local Config = require(Shared.Config)
 local Format = require(Shared.Util.Format)
 local Tracks = require(Shared.Tracks)

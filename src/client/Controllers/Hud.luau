@@ -6,7 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
-local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Shared = ReplicatedStorage:WaitForChild("CarsShared")
 local Format = require(Shared.Util.Format)
 local Net = require(Shared.Net)
 local Signal = require(Shared.Util.Signal)

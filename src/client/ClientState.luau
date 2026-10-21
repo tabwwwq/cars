@@ -3,7 +3,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Shared = ReplicatedStorage:WaitForChild("CarsShared")
 local Signal = require(Shared.Util.Signal)
 
 local ClientState = {}

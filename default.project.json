@@ -1,0 +1,43 @@
+{
+  "name": "CarsMode",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "CarsShared": {
+        "$path": "src/shared"
+      },
+      "CarsAssets": {
+        "$path": "assets"
+      }
+    },
+    "ServerScriptService": {
+      "CarsServer": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "CarsClient": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false,
+        "Gravity": 196.2
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future",
+        "GlobalShadows": true
+      }
+    },
+    "SoundService": {
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    }
+  }
+}

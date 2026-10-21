@@ -2,14 +2,14 @@
 -- exposes track data, spawn pads and bonus zones to the other systems.
 --
 -- Bake the map into the place (to look at or edit it in Studio):
---   require(game.ServerScriptService.Server.Systems.World).bake()
+--   require(game.ServerScriptService.CarsServer.Systems.World).bake()
 -- in the Studio command bar, then save the place. The server will then skip
 -- building and only compute the data.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Shared = ReplicatedStorage:WaitForChild("CarsShared")
 local Signal = require(Shared.Util.Signal)
 local Spline = require(Shared.Util.Spline)
 local Tracks = require(Shared.Tracks)

@@ -91,6 +91,9 @@ export type CarDef = {
 	features: { [string]: any },
 	seats: { SeatSpec }?,
 	maxSeats: number?,
+	-- optional: name of a template model in ReplicatedStorage.CarsAssets.Cars
+	-- used as the visual body (see CarBuilder.findTemplate)
+	customModel: string?,
 }
 
 -- Saved per-car customization and upgrades

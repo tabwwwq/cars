@@ -10,7 +10,7 @@ local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Shared = ReplicatedStorage:WaitForChild("CarsShared")
 local CarBuilder = require(Shared.CarBuilder)
 local CarCatalog = require(Shared.CarCatalog)
 local CarPhysics = require(Shared.CarPhysics)
@@ -127,6 +127,44 @@ local function padIsFree(cf: CFrame, ignore: Model?): boolean
 	return true
 end
 
+-- A free spot on the ground right next to the player (used away from the plaza).
+local function spotNearPlayer(player: Player, def, ignore: Model?): CFrame?
+	local char = player.Character
+	local root = char and char.PrimaryPart
+	if not root then
+		return nil
+	end
+	local extents = CarBuilder.getExtents(def)
+	local look = root.CFrame.LookVector
+	local flat = Vector3.new(look.X, 0, look.Z)
+	if flat.Magnitude < 0.1 then
+		flat = Vector3.new(0, 0, -1)
+	end
+	flat = flat.Unit
+	local right = Vector3.new(-flat.Z, 0, flat.X)
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+	rayParams.FilterDescendantsInstances = { char, carsFolder }
+	local overlap = OverlapParams.new()
+	overlap.FilterType = Enum.RaycastFilterType.Exclude
+	overlap.FilterDescendantsInstances = { char, workspace.Terrain, carsFolder }
+	overlap.RespectCanCollide = true
+	local gap = extents.X / 2 + 6
+	for _, offset in { flat * (extents.Z / 2 + 6), right * gap, -right * gap, -flat * (extents.Z / 2 + 6) } do
+		local probe = root.Position + offset
+		local hit = workspace:Raycast(probe + Vector3.new(0, 10, 0), Vector3.new(0, -40, 0), rayParams)
+		if hit and hit.Normal.Y > 0.85 then
+			local ground = CFrame.lookAt(hit.Position, hit.Position + flat)
+			local boxCf = ground * CFrame.new(0, extents.Y / 2 + 0.8, 0)
+			local blocking = workspace:GetPartBoundsInBox(boxCf, extents + Vector3.new(1, 0, 1), overlap)
+			if #blocking == 0 and padIsFree(ground, ignore) then
+				return ground
+			end
+		end
+	end
+	return nil
+end
+
 local function findSpawn(player: Player): CFrame?
 	local pads = World.Layout.SpawnPads
 	local origin = Vector3.zero
@@ -181,7 +219,7 @@ local function seatPlayer(player: Player, seat: Seat | VehicleSeat): boolean
 		return false
 	end
 	local root = (player.Character :: Model).PrimaryPart
-	if not root or (root.Position - seat.Position).Magnitude > 40 then
+	if not root or (root.Position - seat.Position).Magnitude > 60 then
 		return false
 	end
 	if hum.SeatPart then
@@ -293,6 +331,12 @@ function Vehicles.spawn(player: Player, carId: string): SpawnResult
 
 	local old = cars[player]
 	local pad = findSpawn(player)
+	-- far from the plaza: try to put the car right next to the player
+	local char = player.Character
+	local root = char and char.PrimaryPart
+	if root and (not pad or (pad.Position - root.Position).Magnitude > 150) then
+		pad = spotNearPlayer(player, def, old) or pad
+	end
 	if not pad then
 		-- re-use our own pad slot if the old car was blocking one
 		if old then

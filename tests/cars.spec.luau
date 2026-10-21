@@ -117,6 +117,50 @@ test("effective stats grow with upgrades", function()
 	end
 end)
 
+test("cars can use a template model as their body", function()
+	local Instance, Vector3, CFrame = world.env.Instance, world.env.Vector3, world.env.CFrame
+	local rs = world.game:GetService("ReplicatedStorage")
+	local assets = Instance.new("Folder")
+	assets.Name = "CarsAssets"
+	assets.Parent = rs
+	local cars = Instance.new("Folder")
+	cars.Name = "Cars"
+	cars.Parent = assets
+	local template = Instance.new("Model")
+	template.Name = "TestBody"
+	local body = Instance.new("Part")
+	body.Name = "Paint"
+	body.Size = Vector3.new(7, 2, 14)
+	body.CFrame = CFrame.new(0, 2, 0)
+	body.Parent = template
+	local wheel = Instance.new("Part")
+	wheel.Name = "WheelFL"
+	wheel.CFrame = CFrame.new(-3, 1, -4)
+	wheel.Parent = template
+	template.Parent = cars
+	local def = table.clone(CarCatalog.get("cruiser"))
+	def.customModel = "TestBody"
+	local model = CarBuilder.build(def, { ownerName = "T" })
+	local paint, hidden, wheels = 0, false, 0
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			if d:GetAttribute("Role") == "Paint" then
+				paint += 1
+			end
+			if d.Name == "WheelFL" and d.Transparency == 1 then
+				hidden = true
+			end
+			if d:GetAttribute("Wheel") then
+				wheels += 1
+			end
+		end
+	end
+	assertTrue(paint == 1, "template paint part not recolored")
+	assertTrue(hidden, "template wheel not hidden")
+	assertTrue(wheels == 4, "generated wheels missing")
+	assets:Destroy()
+end)
+
 test("dump geometry for the renderer", function()
 	local out = {}
 	for _, def in CarCatalog.List do

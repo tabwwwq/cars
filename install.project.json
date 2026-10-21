@@ -1,0 +1,21 @@
+{
+  "name": "CarsModeInstall",
+  "tree": {
+    "$className": "Folder",
+    "CarsShared": {
+      "$path": "src/shared"
+    },
+    "CarsServer": {
+      "$path": "src/server"
+    },
+    "CarsClient": {
+      "$path": "src/client"
+    },
+    "CarsAssets": {
+      "$path": "assets"
+    },
+    "Installer": {
+      "$path": "tools/Installer.luau"
+    }
+  }
+}

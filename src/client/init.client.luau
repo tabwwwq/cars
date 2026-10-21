@@ -4,7 +4,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Shared = ReplicatedStorage:WaitForChild("CarsShared")
 local Config = require(Shared.Config)
 local Net = require(Shared.Net)
 local Strings = require(Shared.Strings)

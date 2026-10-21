@@ -1,0 +1,6 @@
+# Toolchain for Roblox development (install Rokit: https://github.com/rojo-rbx/rokit)
+# then run `rokit install` in this folder.
+[tools]
+rojo = "rojo-rbx/rojo@7.7.1"
+selene = "Kampfkarren/selene@0.31.0"
+stylua = "JohnnyMorganz/StyLua@2.6.0"

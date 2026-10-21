@@ -646,11 +646,36 @@ Imt.__index = function(self, k)
 			return child
 		end
 	end
+	-- permissive mode (client smoke tests): unknown members are callable signals
+	if M.permissive and string.match(k, "^[A-Z]") and (props.__service or props.ClassName == "Stub") then
+		local signals = rawget(self, "__signals")
+		if not signals[k] then
+			local sig = newSignal()
+			setmetatable(sig, {
+				__call = function()
+					local stub = Instance.new("Stub")
+					return stub
+				end,
+			})
+			signals[k] = sig
+		end
+		return signals[k]
+	end
 	-- unknown events
 	local signals = rawget(self, "__signals")
 	if
 		string.match(k, "^[A-Z]")
-		and (k:match("ed$") or k:match("ing$") or k:match("^On") or k:match("^Pre") or k:match("^Post") or k == "Heartbeat" or k == "Stepped")
+		and (
+			k:match("ed$")
+			or k:match("ing$")
+			or k:match("^On")
+			or k:match("^Pre")
+			or k:match("^Post")
+			or k:match("^Mouse")
+			or k:match("^Input")
+			or k == "Heartbeat"
+			or k == "Stepped"
+		)
 	then
 		signals[k] = signals[k] or newSignal()
 		return signals[k]
@@ -1014,6 +1039,7 @@ function M.makeGame()
 		if not s then
 			s = Instance.new(name)
 			s.Name = name
+			rawget(s, "__props").__service = true
 			s.Parent = game
 			services[name] = s
 		end
@@ -1061,10 +1087,22 @@ function M.makeGame()
 		return {}
 	end
 	local tagged = {}
+	local addedSignals, removedSignals = {}, {}
+	rawget(cs, "__props").GetInstanceAddedSignal = function(_, tag)
+		addedSignals[tag] = addedSignals[tag] or newSignal()
+		return addedSignals[tag]
+	end
+	rawget(cs, "__props").GetInstanceRemovedSignal = function(_, tag)
+		removedSignals[tag] = removedSignals[tag] or newSignal()
+		return removedSignals[tag]
+	end
 	rawget(cs, "__props").AddTag = function(_, inst, tag)
 		inst:AddTag(tag)
 		tagged[tag] = tagged[tag] or {}
 		table.insert(tagged[tag], inst)
+		if addedSignals[tag] then
+			addedSignals[tag]:Fire(inst)
+		end
 	end
 	rawget(cs, "__props").RemoveTag = function(_, inst, tag)
 		local list = tagged[tag]

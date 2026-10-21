@@ -1,5 +1,4 @@
-# build outputs
-/build/
+# generated files (build/ is committed on purpose: open it in Studio)
 tests/out/
 tools/luau-runner/target/
 *.rbxlx.lock

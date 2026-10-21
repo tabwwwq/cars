@@ -28,13 +28,13 @@ local function newWorld()
 
 	local rs = game:GetService("ReplicatedStorage")
 	local shared = Instance.new("Folder")
-	shared.Name = "Shared"
+	shared.Name = "CarsShared"
 	shared.Parent = rs
 	mount(shared, "src/shared")
 
 	local sss = game:GetService("ServerScriptService")
 	local server = Instance.new("Script")
-	server.Name = "Server"
+	server.Name = "CarsServer"
 	server.Parent = sss
 	mount(server, "src/server")
 
@@ -43,7 +43,7 @@ local function newWorld()
 	sps.Name = "StarterPlayerScripts"
 	sps.Parent = sp
 	local client = Instance.new("LocalScript")
-	client.Name = "Client"
+	client.Name = "CarsClient"
 	client.Parent = sps
 	mount(client, "src/client")
 

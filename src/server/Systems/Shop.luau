@@ -3,7 +3,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Shared = ReplicatedStorage:WaitForChild("CarsShared")
 local CarCatalog = require(Shared.CarCatalog)
 local Config = require(Shared.Config)
 local Format = require(Shared.Util.Format)

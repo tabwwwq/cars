@@ -84,29 +84,29 @@ Config.Surfaces = {
 
 -- Economy -------------------------------------------------------------------
 Config.Earnings = {
-	PerStud = 0.035, -- cash per stud driven
+	PerStud = 0.08, -- cash per stud driven (100 studs/s = $480 per minute)
 	MinSpeed = 12, -- below this nothing is paid for distance
 	PayoutInterval = 5, -- seconds between distance payouts
-	DriftPerSecond = 14,
+	DriftPerSecond = 30,
 	DriftMinDuration = 1.2,
-	AirPerSecond = 22,
+	AirPerSecond = 45,
 	AirMinDuration = 0.9,
 	SpeedTrapThresholds = { 120, 160, 200, 240 }, -- studs/s
-	SpeedTrapRewards = { 150, 350, 700, 1500 },
-	MaxPerMinute = 9000, -- hard cap on passive earnings (distance/drift/air)
+	SpeedTrapRewards = { 300, 700, 1500, 3000 },
+	MaxPerMinute = 12000, -- hard cap on passive earnings (distance/drift/air)
 }
 
 Config.Daily = {
-	Base = 1500,
-	StreakBonus = 500,
+	Base = 2000,
+	StreakBonus = 750,
 	MaxStreak = 7,
 }
 
 Config.Races = {
 	CountdownSeconds = 3,
 	CheckpointTimeout = 75, -- seconds without a checkpoint -> DNF
-	FinishReward = 400,
-	MedalRewards = { Gold = 2500, Silver = 1300, Bronze = 650 },
+	FinishReward = 600,
+	MedalRewards = { Gold = 3500, Silver = 1800, Bronze = 900 },
 	RepeatMedalShare = 0.25, -- medals already earned pay this share again
 }
 
