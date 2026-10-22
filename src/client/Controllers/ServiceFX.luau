@@ -30,23 +30,22 @@ type Mover = {
 local movers: { [Model]: Mover } = {}
 
 local function readPath(m: Mover)
-	local model = m.model
-	local text = model:GetAttribute("MovePath")
-	if typeof(text) ~= "string" or text == "" then
+	local text = m.model:GetAttribute("Move")
+	if text == m.key then
+		return
+	end
+	local move = Path.decodeMove(text)
+	if not move then
 		m.track = nil
 		m.done = true
 		return
 	end
-	local key = text .. "|" .. tostring(model:GetAttribute("MoveStart"))
-	if key == m.key then
-		return
-	end
-	m.key = key
-	m.track = Path.new(Path.decode(text))
-	m.start = tonumber(model:GetAttribute("MoveStart")) or 0
-	m.speed = tonumber(model:GetAttribute("MoveSpeed")) or 10
-	m.reverse = model:GetAttribute("MoveReverse") == true
-	m.y = tonumber(model:GetAttribute("MoveY")) or 0
+	m.key = text
+	m.track = Path.new(move.points)
+	m.start = move.start
+	m.speed = move.speed
+	m.reverse = move.reverse
+	m.y = move.y
 	m.duration = Path.duration((m.track :: Path.Track).length, m.speed)
 	m.done = false
 end
@@ -75,11 +74,9 @@ local function add(model: Instance)
 	end
 	movers[model] = m
 	readPath(m)
-	for _, attr in { "MovePath", "MoveStart" } do
-		model:GetAttributeChangedSignal(attr):Connect(function()
-			readPath(m)
-		end)
-	end
+	model:GetAttributeChangedSignal("Move"):Connect(function()
+		readPath(m)
+	end)
 end
 
 local function remove(model: Instance)

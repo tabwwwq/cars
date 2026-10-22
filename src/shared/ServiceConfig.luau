@@ -31,10 +31,10 @@ export type Size = {
 }
 
 ServiceConfig.Sizes = {
-	tiny = { minStep = 1.2, par = 7, spots = 16, spotSize = 0.75, brush = 0.9, camera = 9, workerStep = 5, speed = 11 },
-	small = { minStep = 1.5, par = 9, spots = 20, spotSize = 1.0, brush = 1.2, camera = 12, workerStep = 6, speed = 14 },
-	car = { minStep = 2.0, par = 12, spots = 28, spotSize = 1.5, brush = 2.0, camera = 21, workerStep = 8, speed = 18 },
-	big = { minStep = 2.6, par = 15, spots = 34, spotSize = 2.1, brush = 2.8, camera = 30, workerStep = 10, speed = 16 },
+	tiny = { minStep = 1.75, par = 7, spots = 16, spotSize = 0.75, brush = 0.9, camera = 9, workerStep = 5, speed = 11 },
+	small = { minStep = 2.25, par = 9, spots = 20, spotSize = 1.0, brush = 1.2, camera = 12, workerStep = 6, speed = 14 },
+	car = { minStep = 3.0, par = 12, spots = 28, spotSize = 1.5, brush = 2.0, camera = 21, workerStep = 8, speed = 18 },
+	big = { minStep = 3.75, par = 15, spots = 34, spotSize = 2.1, brush = 2.8, camera = 30, workerStep = 10, speed = 16 },
 } :: { [string]: Size }
 
 --------------------------------------------------------------------------------

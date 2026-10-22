@@ -1,7 +1,8 @@
 -- Path: smooth movement for service customers and staff. The server stores a
--- path as model attributes once (MovePath, MoveStart, MoveSpeed, MoveReverse,
--- MoveY) and parks the model at the end; every client animates the trip
--- locally, so nothing is replicated per frame.
+-- whole trip in one "Move" attribute (start time, speed, direction, ground
+-- height and the route) and parks the model at the end; every client animates
+-- the trip locally, so nothing is replicated per frame. One attribute means a
+-- client never sees half of an update.
 
 local Spline = require(script.Parent.Spline)
 
@@ -23,6 +24,33 @@ function Path.decode(text: string): { Vector3 }
 		table.insert(out, Vector3.new(tonumber(x) :: number, 0, tonumber(z) :: number))
 	end
 	return out
+end
+
+export type Move = { start: number, speed: number, reverse: boolean, y: number, points: { Vector3 } }
+
+function Path.encodeMove(move: Move): string
+	return string.format("%.3f|%.2f|%d|%.2f|%s", move.start, move.speed, if move.reverse then 1 else 0, move.y, Path.encode(move.points))
+end
+
+function Path.decodeMove(text: any): Move?
+	if typeof(text) ~= "string" then
+		return nil
+	end
+	local start, speed, rev, y, route = string.match(text, "^([^|]+)|([^|]+)|([^|]+)|([^|]+)|(.*)$")
+	if not route then
+		return nil
+	end
+	local points = Path.decode(route)
+	if #points == 0 then
+		return nil
+	end
+	return {
+		start = tonumber(start) or 0,
+		speed = tonumber(speed) or 10,
+		reverse = rev == "1",
+		y = tonumber(y) or 0,
+		points = points,
+	}
 end
 
 function Path.new(points: { Vector3 }): Track

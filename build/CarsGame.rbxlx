@@ -4391,10 +4391,10 @@ export type Size = {
 }
 
 ServiceConfig.Sizes = {
-	tiny = { minStep = 1.2, par = 7, spots = 16, spotSize = 0.75, brush = 0.9, camera = 9, workerStep = 5, speed = 11 },
-	small = { minStep = 1.5, par = 9, spots = 20, spotSize = 1.0, brush = 1.2, camera = 12, workerStep = 6, speed = 14 },
-	car = { minStep = 2.0, par = 12, spots = 28, spotSize = 1.5, brush = 2.0, camera = 21, workerStep = 8, speed = 18 },
-	big = { minStep = 2.6, par = 15, spots = 34, spotSize = 2.1, brush = 2.8, camera = 30, workerStep = 10, speed = 16 },
+	tiny = { minStep = 1.75, par = 7, spots = 16, spotSize = 0.75, brush = 0.9, camera = 9, workerStep = 5, speed = 11 },
+	small = { minStep = 2.25, par = 9, spots = 20, spotSize = 1.0, brush = 1.2, camera = 12, workerStep = 6, speed = 14 },
+	car = { minStep = 3.0, par = 12, spots = 28, spotSize = 1.5, brush = 2.0, camera = 21, workerStep = 8, speed = 18 },
+	big = { minStep = 3.75, par = 15, spots = 34, spotSize = 2.1, brush = 2.8, camera = 30, workerStep = 10, speed = 16 },
 } :: { [string]: Size }
 
 --------------------------------------------------------------------------------
@@ -6831,9 +6831,10 @@ return Format
           <Properties>
             <string name="Name">Path</string>
             <string name="Source"><![CDATA[-- Path: smooth movement for service customers and staff. The server stores a
--- path as model attributes once (MovePath, MoveStart, MoveSpeed, MoveReverse,
--- MoveY) and parks the model at the end; every client animates the trip
--- locally, so nothing is replicated per frame.
+-- whole trip in one "Move" attribute (start time, speed, direction, ground
+-- height and the route) and parks the model at the end; every client animates
+-- the trip locally, so nothing is replicated per frame. One attribute means a
+-- client never sees half of an update.
 
 local Spline = require(script.Parent.Spline)
 
@@ -6855,6 +6856,33 @@ function Path.decode(text: string): { Vector3 }
 		table.insert(out, Vector3.new(tonumber(x) :: number, 0, tonumber(z) :: number))
 	end
 	return out
+end
+
+export type Move = { start: number, speed: number, reverse: boolean, y: number, points: { Vector3 } }
+
+function Path.encodeMove(move: Move): string
+	return string.format("%.3f|%.2f|%d|%.2f|%s", move.start, move.speed, if move.reverse then 1 else 0, move.y, Path.encode(move.points))
+end
+
+function Path.decodeMove(text: any): Move?
+	if typeof(text) ~= "string" then
+		return nil
+	end
+	local start, speed, rev, y, route = string.match(text, "^([^|]+)|([^|]+)|([^|]+)|([^|]+)|(.*)$")
+	if not route then
+		return nil
+	end
+	local points = Path.decode(route)
+	if #points == 0 then
+		return nil
+	end
+	return {
+		start = tonumber(start) or 0,
+		speed = tonumber(speed) or 10,
+		reverse = rev == "1",
+		y = tonumber(y) or 0,
+		points = points,
+	}
 end
 
 function Path.new(points: { Vector3 }): Track
@@ -8263,7 +8291,7 @@ local function lockIsForeign(lock: any): boolean
 end
 
 -- Claims the session lock and returns the stored profile.
--- status: "ok" | "locked" | "error"
+-- status: "ok" | "locked" | "newer" | "error"
 local function claim(player: Player): (string, Profile?)
 	local status = "error"
 	local loaded: Profile? = nil
@@ -8272,6 +8300,10 @@ local function claim(player: Player): (string, Profile?)
 			if old ~= nil and lockIsForeign(old.lock) then
 				status = "locked"
 				return nil -- abort: another server owns this save
+			end
+			if old ~= nil and (tonumber(old.version) or 0) > CURRENT_VERSION then
+				status = "newer"
+				return nil -- written by a newer game version: never downgrade it
 			end
 			local data = if old == nil then defaultProfile() else reconcile(migrate(old))
 			loaded = data
@@ -8301,7 +8333,7 @@ local function save(player: Player, release: boolean): boolean
 	local lostLock = false
 	local ok = withRetry(if release then 5 else 3, function()
 		(store :: DataStore):UpdateAsync(keyFor(player), function(old)
-			if old ~= nil and lockIsForeign(old.lock) then
+			if old ~= nil and (lockIsForeign(old.lock) or (tonumber(old.version) or 0) > CURRENT_VERSION) then
 				lostLock = true
 				return nil
 			end
@@ -8505,6 +8537,8 @@ local function onPlayerAdded(player: Player)
 			player:Kick(
 				if status == "locked"
 					then "Ваши данные ещё сохраняются на другом сервере. Перезайдите через минуту. / Your data is still saving on another server, please rejoin in a minute."
+					elseif status == "newer"
+					then "Этот сервер устарел — перезайдите, чтобы попасть на новую версию игры. / This server runs an old version, please rejoin."
 					else "Не удалось загрузить сохранение. Перезайдите. / Could not load your save, please rejoin."
 			)
 			return
@@ -8993,6 +9027,7 @@ export type Job = {
 	onArrive: (() -> ())?,
 	workerStart: number?,
 	workerDuration: number?,
+	completed: boolean?,
 	tag: TextLabel?,
 	tagText: string?,
 }
@@ -9067,11 +9102,10 @@ end
 local function move(plot: PlotState, model: Model, points: { Vector3 }, speed: number, reverse: boolean?): number
 	local track = Path.new(points)
 	local y = groundY(plot)
-	model:SetAttribute("MovePath", Path.encode(points))
-	model:SetAttribute("MoveStart", Service.now())
-	model:SetAttribute("MoveSpeed", speed)
-	model:SetAttribute("MoveReverse", reverse == true)
-	model:SetAttribute("MoveY", y)
+	model:SetAttribute(
+		"Move",
+		Path.encodeMove({ start = Service.now(), speed = speed, reverse = reverse == true, y = y, points = points })
+	)
 	model:PivotTo(Path.groundCFrame(track, track.length, y, reverse))
 	return Service.now() + Path.duration(track.length, speed)
 end
@@ -9518,6 +9552,12 @@ local function addXp(player: Player, amount: number)
 end
 
 local function complete(job: Job, byWorker: boolean)
+	if job.completed then
+		return
+	end
+	-- leave first so nothing can pay this order twice
+	job.completed = true
+	leave(job, true)
 	local plot = job.plot
 	local owner = plot.owner
 	if owner then
@@ -9555,7 +9595,6 @@ local function complete(job: Job, byWorker: boolean)
 			source = job.order.source,
 		})
 	end
-	leave(job, true)
 end
 
 --------------------------------------------------------------------------------
@@ -9761,6 +9800,9 @@ local function claim(player: Player): PlotState?
 	if plotOf[player] then
 		return plotOf[player]
 	end
+	if not player.Parent then
+		return nil -- left while a request was in flight
+	end
 	for _, plot in plots do
 		if plot.owner == nil then
 			plot.owner = player
@@ -9827,65 +9869,73 @@ local function stepMovers(now: number, holder: { moveEnd: number?, onArrive: (()
 	end
 end
 
+local function updatePlot(plot: PlotState, t: number)
+	-- movement callbacks
+	for _, job in plot.jobs do
+		stepMovers(t, job :: any)
+	end
+	for _, w in plot.workers do
+		stepMovers(t, w :: any)
+	end
+	-- staff progress
+	for _, w in plot.workers do
+		local job = w.job
+		if w.state == "working" and job and job.workerStart and job.workerDuration then
+			refreshTag(job)
+			if t - job.workerStart >= job.workerDuration then
+				local bay = job.bay :: number
+				workerDone(plot, w, bay)
+				complete(job, true)
+			end
+		end
+	end
+	-- idle staff take orders that waited long enough
+	for _, w in plot.workers do
+		if w.state == "idle" then
+			local bay = freeBay(plot)
+			if not bay then
+				break
+			end
+			local pick: Job? = nil
+			for _, job in plot.jobs do
+				if job.state == "waiting" and job.assignee == nil and t - job.waitingSince >= ServiceConfig.WorkerPickDelay then
+					if not pick or job.id < pick.id then
+						pick = job
+					end
+				end
+			end
+			if pick then
+				assignWorker(plot, w, pick, bay)
+			end
+		end
+	end
+	-- impatient customers leave
+	for _, job in plot.jobs do
+		if job.state == "waiting" and job.assignee == nil and t - job.waitingSince > ServiceConfig.Patience then
+			leave(job, false)
+			updateBoard(plot)
+		end
+	end
+	-- new customers
+	if t >= plot.nextArrival then
+		local job = spawnCustomer(plot)
+		local marketing = upgradesOf(plot).marketing or 0
+		local interval = ServiceConfig.arrivalInterval(marketing)
+		plot.nextArrival = t + (if job then interval * plot.rng:NextNumber(0.8, 1.2) else 3)
+	end
+	if plot.dirty and os.clock() - plot.lastPush > 0.2 then
+		push(plot)
+	end
+end
+
 function Service.update(now: number?)
 	local t = now or Service.now()
 	for _, plot in plots do
 		if plot.owner then
-			-- movement callbacks
-			for _, job in plot.jobs do
-				stepMovers(t, job :: any)
-			end
-			for _, w in plot.workers do
-				stepMovers(t, w :: any)
-			end
-			-- staff progress
-			for _, w in plot.workers do
-				local job = w.job
-				if w.state == "working" and job and job.workerStart and job.workerDuration then
-					refreshTag(job)
-					if t - job.workerStart >= job.workerDuration then
-						local bay = job.bay :: number
-						workerDone(plot, w, bay)
-						complete(job, true)
-					end
-				end
-			end
-			-- idle staff take orders that waited long enough
-			for _, w in plot.workers do
-				if w.state == "idle" then
-					local bay = freeBay(plot)
-					if not bay then
-						break
-					end
-					local pick: Job? = nil
-					for _, job in plot.jobs do
-						if job.state == "waiting" and job.assignee == nil and t - job.waitingSince >= ServiceConfig.WorkerPickDelay then
-							if not pick or job.id < pick.id then
-								pick = job
-							end
-						end
-					end
-					if pick then
-						assignWorker(plot, w, pick, bay)
-					end
-				end
-			end
-			-- impatient customers leave
-			for _, job in plot.jobs do
-				if job.state == "waiting" and job.assignee == nil and t - job.waitingSince > ServiceConfig.Patience then
-					leave(job, false)
-					updateBoard(plot)
-				end
-			end
-			-- new customers
-			if t >= plot.nextArrival then
-				local job = spawnCustomer(plot)
-				local marketing = upgradesOf(plot).marketing or 0
-				local interval = ServiceConfig.arrivalInterval(marketing)
-				plot.nextArrival = t + (if job then interval * plot.rng:NextNumber(0.8, 1.2) else 3)
-			end
-			if plot.dirty and os.clock() - plot.lastPush > 0.2 then
-				push(plot)
+			-- one broken plot must not stop the others
+			local ok, err = pcall(updatePlot, plot, t)
+			if not ok then
+				warn("[Service] plot " .. plot.data.index .. ": " .. tostring(err))
 			end
 		end
 	end
@@ -9969,7 +10019,9 @@ local function onWork(player: Player, id: any): Net.Result
 	end
 	job.working = true
 	job.workStart = Service.now()
-	job.stepStart = job.stepStart or Service.now()
+	-- the step clock restarts whenever work (re)starts, so steps of several
+	-- jobs can't be finished in parallel by hopping between them
+	job.stepStart = Service.now()
 	local bay = job.plot.data.bays[job.bay :: number]
 	local width = math.max(4, job.model:GetExtentsSize().X / 2)
 	local stand = bay * CFrame.new(-(width + 4), 3, 6)
@@ -10077,6 +10129,9 @@ local function onBuy(player: Player, upgradeId: any): Net.Result
 end
 
 local function onHome(player: Player): Net.Result
+	if not PlayerData.get(player) then
+		return { ok = false } -- the save is still loading
+	end
 	local plot = plotOf[player] or claim(player)
 	if not plot then
 		return { ok = false, message = "ServiceNoPlot" }
@@ -10155,7 +10210,12 @@ function Service.start()
 	World.waitUntilReady()
 	Service.setupPlots(World.ServicePlots)
 	PlayerData.Loaded:Connect(function(player)
-		claim(player)
+		local plot = claim(player)
+		if plot then
+			-- the plot may have been claimed before the save arrived
+			syncPlotToProfile(plot)
+			markDirty(plot)
+		end
 	end)
 	for _, player in Players:GetPlayers() do
 		if PlayerData.get(player) then
@@ -17530,23 +17590,22 @@ type Mover = {
 local movers: { [Model]: Mover } = {}
 
 local function readPath(m: Mover)
-	local model = m.model
-	local text = model:GetAttribute("MovePath")
-	if typeof(text) ~= "string" or text == "" then
+	local text = m.model:GetAttribute("Move")
+	if text == m.key then
+		return
+	end
+	local move = Path.decodeMove(text)
+	if not move then
 		m.track = nil
 		m.done = true
 		return
 	end
-	local key = text .. "|" .. tostring(model:GetAttribute("MoveStart"))
-	if key == m.key then
-		return
-	end
-	m.key = key
-	m.track = Path.new(Path.decode(text))
-	m.start = tonumber(model:GetAttribute("MoveStart")) or 0
-	m.speed = tonumber(model:GetAttribute("MoveSpeed")) or 10
-	m.reverse = model:GetAttribute("MoveReverse") == true
-	m.y = tonumber(model:GetAttribute("MoveY")) or 0
+	m.key = text
+	m.track = Path.new(move.points)
+	m.start = move.start
+	m.speed = move.speed
+	m.reverse = move.reverse
+	m.y = move.y
 	m.duration = Path.duration((m.track :: Path.Track).length, m.speed)
 	m.done = false
 end
@@ -17575,11 +17634,9 @@ local function add(model: Instance)
 	end
 	movers[model] = m
 	readPath(m)
-	for _, attr in { "MovePath", "MoveStart" } do
-		model:GetAttributeChangedSignal(attr):Connect(function()
-			readPath(m)
-		end)
-	end
+	model:GetAttributeChangedSignal("Move"):Connect(function()
+		readPath(m)
+	end)
 end
 
 local function remove(model: Instance)
@@ -18131,6 +18188,7 @@ local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local StarterPlayer = game:GetService("StarterPlayer")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
@@ -18379,6 +18437,7 @@ type Session = {
 }
 
 local session: Session? = nil
+local entering = false
 local brushing = false
 local rotating = false
 local touchInput: InputObject? = nil
@@ -19423,7 +19482,7 @@ function Workshop.isActive(): boolean
 end
 
 function Workshop.enter(id: number): boolean
-	if session then
+	if session or entering then
 		return false
 	end
 	local job = jobFromState(id)
@@ -19431,7 +19490,13 @@ function Workshop.enter(id: number): boolean
 	if not job or not model or not model.PrimaryPart then
 		return false
 	end
+	-- a double click or a second prompt press must not start a second session
+	entering = true
 	local r = Net.request("ServiceWork", id)
+	entering = false
+	if session or not model.Parent or not model.PrimaryPart then
+		return false
+	end
 	if not r.ok then
 		if r.message then
 			require(script.Parent.Notifications).notifyKey(r.message, r.args, "warning")
@@ -19545,9 +19610,10 @@ function Workshop.exit(completed: boolean?)
 	local character = Players.LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
-		humanoid.WalkSpeed = sess.walkSpeed or 16
-		humanoid.JumpPower = sess.jumpPower or 50
-		humanoid.JumpHeight = sess.jumpHeight or 7.2
+		-- never "restore" a frozen character
+		humanoid.WalkSpeed = if sess.walkSpeed and sess.walkSpeed > 0 then sess.walkSpeed else StarterPlayer.CharacterWalkSpeed
+		humanoid.JumpPower = if sess.jumpPower and sess.jumpPower > 0 then sess.jumpPower else StarterPlayer.CharacterJumpPower
+		humanoid.JumpHeight = if sess.jumpHeight and sess.jumpHeight > 0 then sess.jumpHeight else StarterPlayer.CharacterJumpHeight
 	end
 	if camera then
 		camera.CameraType = Enum.CameraType.Custom

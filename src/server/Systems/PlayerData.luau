@@ -245,7 +245,7 @@ local function lockIsForeign(lock: any): boolean
 end
 
 -- Claims the session lock and returns the stored profile.
--- status: "ok" | "locked" | "error"
+-- status: "ok" | "locked" | "newer" | "error"
 local function claim(player: Player): (string, Profile?)
 	local status = "error"
 	local loaded: Profile? = nil
@@ -254,6 +254,10 @@ local function claim(player: Player): (string, Profile?)
 			if old ~= nil and lockIsForeign(old.lock) then
 				status = "locked"
 				return nil -- abort: another server owns this save
+			end
+			if old ~= nil and (tonumber(old.version) or 0) > CURRENT_VERSION then
+				status = "newer"
+				return nil -- written by a newer game version: never downgrade it
 			end
 			local data = if old == nil then defaultProfile() else reconcile(migrate(old))
 			loaded = data
@@ -283,7 +287,7 @@ local function save(player: Player, release: boolean): boolean
 	local lostLock = false
 	local ok = withRetry(if release then 5 else 3, function()
 		(store :: DataStore):UpdateAsync(keyFor(player), function(old)
-			if old ~= nil and lockIsForeign(old.lock) then
+			if old ~= nil and (lockIsForeign(old.lock) or (tonumber(old.version) or 0) > CURRENT_VERSION) then
 				lostLock = true
 				return nil
 			end
@@ -487,6 +491,8 @@ local function onPlayerAdded(player: Player)
 			player:Kick(
 				if status == "locked"
 					then "Ваши данные ещё сохраняются на другом сервере. Перезайдите через минуту. / Your data is still saving on another server, please rejoin in a minute."
+					elseif status == "newer"
+					then "Этот сервер устарел — перезайдите, чтобы попасть на новую версию игры. / This server runs an old version, please rejoin."
 					else "Не удалось загрузить сохранение. Перезайдите. / Could not load your save, please rejoin."
 			)
 			return

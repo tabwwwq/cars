@@ -13,6 +13,7 @@ local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local StarterPlayer = game:GetService("StarterPlayer")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
@@ -261,6 +262,7 @@ type Session = {
 }
 
 local session: Session? = nil
+local entering = false
 local brushing = false
 local rotating = false
 local touchInput: InputObject? = nil
@@ -1305,7 +1307,7 @@ function Workshop.isActive(): boolean
 end
 
 function Workshop.enter(id: number): boolean
-	if session then
+	if session or entering then
 		return false
 	end
 	local job = jobFromState(id)
@@ -1313,7 +1315,13 @@ function Workshop.enter(id: number): boolean
 	if not job or not model or not model.PrimaryPart then
 		return false
 	end
+	-- a double click or a second prompt press must not start a second session
+	entering = true
 	local r = Net.request("ServiceWork", id)
+	entering = false
+	if session or not model.Parent or not model.PrimaryPart then
+		return false
+	end
 	if not r.ok then
 		if r.message then
 			require(script.Parent.Notifications).notifyKey(r.message, r.args, "warning")
@@ -1427,9 +1435,10 @@ function Workshop.exit(completed: boolean?)
 	local character = Players.LocalPlayer.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
-		humanoid.WalkSpeed = sess.walkSpeed or 16
-		humanoid.JumpPower = sess.jumpPower or 50
-		humanoid.JumpHeight = sess.jumpHeight or 7.2
+		-- never "restore" a frozen character
+		humanoid.WalkSpeed = if sess.walkSpeed and sess.walkSpeed > 0 then sess.walkSpeed else StarterPlayer.CharacterWalkSpeed
+		humanoid.JumpPower = if sess.jumpPower and sess.jumpPower > 0 then sess.jumpPower else StarterPlayer.CharacterJumpPower
+		humanoid.JumpHeight = if sess.jumpHeight and sess.jumpHeight > 0 then sess.jumpHeight else StarterPlayer.CharacterJumpHeight
 	end
 	if camera then
 		camera.CameraType = Enum.CameraType.Custom

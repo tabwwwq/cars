@@ -59,6 +59,7 @@ export type Job = {
 	onArrive: (() -> ())?,
 	workerStart: number?,
 	workerDuration: number?,
+	completed: boolean?,
 	tag: TextLabel?,
 	tagText: string?,
 }
@@ -133,11 +134,10 @@ end
 local function move(plot: PlotState, model: Model, points: { Vector3 }, speed: number, reverse: boolean?): number
 	local track = Path.new(points)
 	local y = groundY(plot)
-	model:SetAttribute("MovePath", Path.encode(points))
-	model:SetAttribute("MoveStart", Service.now())
-	model:SetAttribute("MoveSpeed", speed)
-	model:SetAttribute("MoveReverse", reverse == true)
-	model:SetAttribute("MoveY", y)
+	model:SetAttribute(
+		"Move",
+		Path.encodeMove({ start = Service.now(), speed = speed, reverse = reverse == true, y = y, points = points })
+	)
 	model:PivotTo(Path.groundCFrame(track, track.length, y, reverse))
 	return Service.now() + Path.duration(track.length, speed)
 end
@@ -584,6 +584,12 @@ local function addXp(player: Player, amount: number)
 end
 
 local function complete(job: Job, byWorker: boolean)
+	if job.completed then
+		return
+	end
+	-- leave first so nothing can pay this order twice
+	job.completed = true
+	leave(job, true)
 	local plot = job.plot
 	local owner = plot.owner
 	if owner then
@@ -621,7 +627,6 @@ local function complete(job: Job, byWorker: boolean)
 			source = job.order.source,
 		})
 	end
-	leave(job, true)
 end
 
 --------------------------------------------------------------------------------
@@ -827,6 +832,9 @@ local function claim(player: Player): PlotState?
 	if plotOf[player] then
 		return plotOf[player]
 	end
+	if not player.Parent then
+		return nil -- left while a request was in flight
+	end
 	for _, plot in plots do
 		if plot.owner == nil then
 			plot.owner = player
@@ -893,65 +901,73 @@ local function stepMovers(now: number, holder: { moveEnd: number?, onArrive: (()
 	end
 end
 
+local function updatePlot(plot: PlotState, t: number)
+	-- movement callbacks
+	for _, job in plot.jobs do
+		stepMovers(t, job :: any)
+	end
+	for _, w in plot.workers do
+		stepMovers(t, w :: any)
+	end
+	-- staff progress
+	for _, w in plot.workers do
+		local job = w.job
+		if w.state == "working" and job and job.workerStart and job.workerDuration then
+			refreshTag(job)
+			if t - job.workerStart >= job.workerDuration then
+				local bay = job.bay :: number
+				workerDone(plot, w, bay)
+				complete(job, true)
+			end
+		end
+	end
+	-- idle staff take orders that waited long enough
+	for _, w in plot.workers do
+		if w.state == "idle" then
+			local bay = freeBay(plot)
+			if not bay then
+				break
+			end
+			local pick: Job? = nil
+			for _, job in plot.jobs do
+				if job.state == "waiting" and job.assignee == nil and t - job.waitingSince >= ServiceConfig.WorkerPickDelay then
+					if not pick or job.id < pick.id then
+						pick = job
+					end
+				end
+			end
+			if pick then
+				assignWorker(plot, w, pick, bay)
+			end
+		end
+	end
+	-- impatient customers leave
+	for _, job in plot.jobs do
+		if job.state == "waiting" and job.assignee == nil and t - job.waitingSince > ServiceConfig.Patience then
+			leave(job, false)
+			updateBoard(plot)
+		end
+	end
+	-- new customers
+	if t >= plot.nextArrival then
+		local job = spawnCustomer(plot)
+		local marketing = upgradesOf(plot).marketing or 0
+		local interval = ServiceConfig.arrivalInterval(marketing)
+		plot.nextArrival = t + (if job then interval * plot.rng:NextNumber(0.8, 1.2) else 3)
+	end
+	if plot.dirty and os.clock() - plot.lastPush > 0.2 then
+		push(plot)
+	end
+end
+
 function Service.update(now: number?)
 	local t = now or Service.now()
 	for _, plot in plots do
 		if plot.owner then
-			-- movement callbacks
-			for _, job in plot.jobs do
-				stepMovers(t, job :: any)
-			end
-			for _, w in plot.workers do
-				stepMovers(t, w :: any)
-			end
-			-- staff progress
-			for _, w in plot.workers do
-				local job = w.job
-				if w.state == "working" and job and job.workerStart and job.workerDuration then
-					refreshTag(job)
-					if t - job.workerStart >= job.workerDuration then
-						local bay = job.bay :: number
-						workerDone(plot, w, bay)
-						complete(job, true)
-					end
-				end
-			end
-			-- idle staff take orders that waited long enough
-			for _, w in plot.workers do
-				if w.state == "idle" then
-					local bay = freeBay(plot)
-					if not bay then
-						break
-					end
-					local pick: Job? = nil
-					for _, job in plot.jobs do
-						if job.state == "waiting" and job.assignee == nil and t - job.waitingSince >= ServiceConfig.WorkerPickDelay then
-							if not pick or job.id < pick.id then
-								pick = job
-							end
-						end
-					end
-					if pick then
-						assignWorker(plot, w, pick, bay)
-					end
-				end
-			end
-			-- impatient customers leave
-			for _, job in plot.jobs do
-				if job.state == "waiting" and job.assignee == nil and t - job.waitingSince > ServiceConfig.Patience then
-					leave(job, false)
-					updateBoard(plot)
-				end
-			end
-			-- new customers
-			if t >= plot.nextArrival then
-				local job = spawnCustomer(plot)
-				local marketing = upgradesOf(plot).marketing or 0
-				local interval = ServiceConfig.arrivalInterval(marketing)
-				plot.nextArrival = t + (if job then interval * plot.rng:NextNumber(0.8, 1.2) else 3)
-			end
-			if plot.dirty and os.clock() - plot.lastPush > 0.2 then
-				push(plot)
+			-- one broken plot must not stop the others
+			local ok, err = pcall(updatePlot, plot, t)
+			if not ok then
+				warn("[Service] plot " .. plot.data.index .. ": " .. tostring(err))
 			end
 		end
 	end
@@ -1035,7 +1051,9 @@ local function onWork(player: Player, id: any): Net.Result
 	end
 	job.working = true
 	job.workStart = Service.now()
-	job.stepStart = job.stepStart or Service.now()
+	-- the step clock restarts whenever work (re)starts, so steps of several
+	-- jobs can't be finished in parallel by hopping between them
+	job.stepStart = Service.now()
 	local bay = job.plot.data.bays[job.bay :: number]
 	local width = math.max(4, job.model:GetExtentsSize().X / 2)
 	local stand = bay * CFrame.new(-(width + 4), 3, 6)
@@ -1143,6 +1161,9 @@ local function onBuy(player: Player, upgradeId: any): Net.Result
 end
 
 local function onHome(player: Player): Net.Result
+	if not PlayerData.get(player) then
+		return { ok = false } -- the save is still loading
+	end
 	local plot = plotOf[player] or claim(player)
 	if not plot then
 		return { ok = false, message = "ServiceNoPlot" }
@@ -1221,7 +1242,12 @@ function Service.start()
 	World.waitUntilReady()
 	Service.setupPlots(World.ServicePlots)
 	PlayerData.Loaded:Connect(function(player)
-		claim(player)
+		local plot = claim(player)
+		if plot then
+			-- the plot may have been claimed before the save arrived
+			syncPlotToProfile(plot)
+			markDirty(plot)
+		end
 	end)
 	for _, player in Players:GetPlayers() do
 		if PlayerData.get(player) then

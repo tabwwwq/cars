@@ -198,10 +198,7 @@ test("car service: orders and business windows, and a full hands-on wash", funct
 	bike:SetAttribute("ServiceJob", 1)
 	bike:SetAttribute("Size", "tiny")
 	bike:SetAttribute("Height", 3.5)
-	bike:SetAttribute("MovePath", "0,0;0,-20;10,-40")
-	bike:SetAttribute("MoveStart", now - 1)
-	bike:SetAttribute("MoveSpeed", 10)
-	bike:SetAttribute("MoveY", 0)
+	bike:SetAttribute("Move", string.format("%.3f|10|0|0|0,0;0,-20;10,-40", now - 1))
 	bike.Parent = env.workspace
 	game:GetService("CollectionService"):AddTag(bike, "ServiceCustomer")
 	local worker = ServiceModels.person("Worker_1", {})

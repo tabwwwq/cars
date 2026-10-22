@@ -299,6 +299,17 @@ test("profiles get a service section and old saves migrate to it", function()
 	assertTrue(old.service and old.service.level == 1, "v2 save without service")
 end)
 
+test("a save from a newer game version is never loaded or overwritten", function()
+	local Config = world.require(world.shared.Config)
+	local store = game:GetService("DataStoreService"):GetDataStore(Config.DataStoreName)
+	store:SetAsync("u_3999", { version = 99, cash = 123456, future = { field = true } })
+	local player = makePlayer(3999)
+	assertTrue(not PlayerData.isPersistent(player), "newer save was claimed for writing")
+	local stored = store:GetAsync("u_3999")
+	assertTrue(stored.version == 99 and stored.future and stored.cash == 123456, "newer save was modified")
+	assertTrue(not Service.handlers.home(player).ok or PlayerData.get(player) ~= nil, "home without a profile")
+end)
+
 test("a customer arrives, you take the order, do every step by hand and get paid", function()
 	local player = makePlayer(3001)
 	local data = PlayerData.get(player)
@@ -312,7 +323,7 @@ test("a customer arrives, you take the order, do every step by hand and get paid
 	local job = onlyJob(plot)
 	assertTrue(job ~= nil, "no customer arrived")
 	assertTrue(job.state == "arriving" and job.order.tier == "bikes", "first customer should be a bike")
-	assertTrue(job.model.Parent ~= nil and job.model:GetAttribute("MovePath") ~= nil, "customer model/path missing")
+	assertTrue(job.model.Parent ~= nil and job.model:GetAttribute("Move") ~= nil, "customer model/path missing")
 	assertTrue(job.steps[1] == "foam" and #job.steps == 4, "level 1 orders are washes")
 	advance(40)
 	assertTrue(job.state == "waiting", "customer did not park (" .. job.state .. ")")
@@ -343,6 +354,11 @@ test("a customer arrives, you take the order, do every step by hand and get paid
 	assertTrue(job.working, "not marked working")
 	r = Service.handlers.step(player, job.id, 1)
 	assertTrue(not r.ok and r.message == "ServiceTooFast", "instant step accepted")
+	-- (re)starting work restarts the step clock: no parallel stepping by hopping jobs
+	clock += 10
+	assertTrue(Service.handlers.work(player, job.id).ok, "work again failed")
+	r = Service.handlers.step(player, job.id, 1)
+	assertTrue(not r.ok and r.message == "ServiceTooFast", "step clock survived a work restart")
 	r = Service.handlers.step(player, job.id, 3)
 	assertTrue(not r.ok, "skipped a step")
 	-- garbage input
