@@ -424,6 +424,22 @@ test("level ups, upgrades with level gates and staff that work on their own", fu
 	assertTrue(picked.state == "leaving" or plot.jobs[picked.id] == nil, "worker never finished")
 	assertTrue(data.cash > cash1 and data.service.orders > orders1, "worker order not paid")
 
+	-- a taken order can be given back, which frees the bay
+	advance(30)
+	local waiting
+	for _, j in plot.jobs do
+		if j.state == "waiting" and j.assignee == nil then
+			waiting = j
+		end
+	end
+	if waiting and Service.handlers.take(player, waiting.id).ok then
+		advance(30)
+		assertTrue(waiting.state == "inBay", "taken order not in the bay")
+		local bay = waiting.bay
+		assertTrue(Service.handlers.cancel(player, waiting.id).ok, "cancel failed")
+		assertTrue(plot.bays[bay] == nil and waiting.state == "leaving", "cancel did not free the bay")
+	end
+
 	-- releasing the plot cleans up
 	Service.release(player)
 	assertTrue(next(plot.jobs) == nil and #plot.workers == 0 and plot.owner == nil, "plot not released")

@@ -1102,6 +1102,17 @@ local function onDismiss(player: Player, id: any): Net.Result
 	return { ok = true }
 end
 
+-- Gives a taken order back: the customer drives off unpaid and the bay is free.
+local function onCancel(player: Player, id: any): Net.Result
+	local job = ownJob(player, id)
+	if not job or job.assignee ~= "player" or job.state ~= "inBay" then
+		return { ok = false }
+	end
+	stopWorking(job)
+	leave(job, true)
+	return { ok = true }
+end
+
 local function onBuy(player: Player, upgradeId: any): Net.Result
 	local upgrade = ServiceConfig.getUpgrade(upgradeId)
 	local svc = profileService(player)
@@ -1188,6 +1199,7 @@ Service.handlers = {
 	step = onStep,
 	leave = onLeave,
 	dismiss = onDismiss,
+	cancel = onCancel,
 	buy = onBuy,
 	home = onHome,
 	tutorial = onTutorial,
@@ -1199,6 +1211,7 @@ function Service.init()
 	Net.handle("ServiceStep", onStep)
 	Net.handle("ServiceLeave", onLeave)
 	Net.handle("ServiceDismiss", onDismiss)
+	Net.handle("ServiceCancel", onCancel)
 	Net.handle("ServiceBuy", onBuy)
 	Net.handle("ServiceHome", onHome)
 	Net.handle("ServiceTutorial", onTutorial)

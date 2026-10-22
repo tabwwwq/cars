@@ -54,6 +54,7 @@ local levelWindow: Frame
 local setLevelOpen: (boolean) -> ()
 
 local previews: { [number]: ViewportFrame } = {}
+local lastResult = 0
 -- labels and bars in the open orders window that change every second
 local live: { { job: any, fill: Frame?, label: TextLabel? } } = {}
 local prompts: { [Instance]: ProximityPrompt } = {}
@@ -354,9 +355,20 @@ local function orderCard(job: any, order: number)
 			Parent = cardFrame,
 		})
 	elseif job.assignee == "player" and job.state == "inBay" then
+		Kit.button({
+			Position = UDim2.fromOffset(338, 168),
+			Size = UDim2.fromOffset(44, 38),
+			Text = "✕",
+			TextSize = 18,
+			BackgroundColor3 = Color3.fromRGB(70, 76, 96),
+			onClick = function()
+				Net.request("ServiceCancel", job.id)
+			end,
+			Parent = cardFrame,
+		})
 		local work = Kit.button({
 			Position = UDim2.fromOffset(172, 168),
-			Size = UDim2.fromOffset(210, 38),
+			Size = UDim2.fromOffset(160, 38),
 			Text = "🧽 " .. Strings.get("ServiceWork"),
 			TextSize = 20,
 			BackgroundColor3 = T.Accent,
@@ -1160,6 +1172,7 @@ function Service.start()
 			Notifications.notifyKey("ServiceReady", {}, "success")
 		elseif kind == "done" and typeof(data) == "table" then
 			if not data.worker then
+				lastResult = os.clock()
 				task.delay(0.8, showResult, data)
 				local svc = svcProfile()
 				if svc and svc.tutorial < 1 then
@@ -1167,7 +1180,9 @@ function Service.start()
 				end
 			end
 		elseif kind == "levelup" and typeof(data) == "number" then
-			task.delay(if resultWindow.Visible then 2.5 else 1.2, showLevelUp, data)
+			-- after the result card has had its moment
+			local recent = os.clock() - lastResult < 2
+			task.delay(if recent or resultWindow.Visible then 3 else 1, showLevelUp, data)
 		end
 	end)
 	ClientState.ServiceChanged:Connect(function()
