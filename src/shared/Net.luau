@@ -21,6 +21,8 @@ Net.ServerEvents = {
 	"Notify", -- (key, args, kind)
 	"Reward", -- (kind, amount, detail)
 	"RaceState", -- race updates for one player
+	"ServiceState", -- the owner's service plot: orders, bays, staff
+	"ServiceEvent", -- (kind, data): arrived / ready / done / levelup
 }
 -- client -> server
 Net.ClientEvents = {

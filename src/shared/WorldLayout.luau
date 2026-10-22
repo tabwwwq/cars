@@ -27,7 +27,7 @@ Layout.CityStreetWidth = 40
 Layout.Roads = {
 	{ a = v(0, -120), b = v(0, -430), w = 44, style = "avenue" },
 	{ a = v(0, 120), b = v(0, 420), w = 44, style = "avenue" },
-	{ a = v(-160, 0), b = v(-900, 0), w = 40, style = "street" },
+	{ a = v(-160, 0), b = v(-900, 0), w = 40, style = "street", lamps = false }, -- the service plots light it
 	{ a = v(160, 0), b = v(520, 0), w = 40, style = "street" },
 	{ a = v(-1800, 450), b = v(0, 450), w = 60, style = "highway" },
 	{ a = v(0, 450), b = v(1800, 450), w = 60, style = "highway" },
@@ -51,6 +51,16 @@ Layout.Showroom = { min = v(-152, -116), max = v(-36, -42) }
 Layout.SouthHills = { start = 640, full = 880 }
 Layout.NorthHills = { start = -1620, full = -1780 }
 Layout.Rim = { width = 140, height = 70 }
+
+-- Car-service plots on both sides of the west street (z = 0). In plot space
+-- +Z points at the street and the plot spans x -100..100, z -85..85; north
+-- plots use the identity rotation, south plots are turned around.
+Layout.ServicePlotSize = Vector2.new(200, 170)
+Layout.ServicePlots = {} :: { CFrame }
+for _, x in { -310, -530, -750 } do
+	table.insert(Layout.ServicePlots, CFrame.new(x, Layout.RoadTop, -115))
+	table.insert(Layout.ServicePlots, CFrame.new(x, Layout.RoadTop, 115) * CFrame.Angles(0, math.pi, 0))
+end
 
 -- Driving zones with bonus rewards
 Layout.Zones = {

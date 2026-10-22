@@ -27,8 +27,11 @@ local function translate(label: Instance)
 		return
 	end
 	local track = label:GetAttribute("LocTrack")
+	local arg = label:GetAttribute("LocArg")
 	if track then
 		label.Text = Strings.get(key, trackName(track))
+	elseif arg ~= nil then
+		label.Text = Strings.get(key, arg)
 	else
 		label.Text = Strings.get(key)
 	end
@@ -72,16 +75,19 @@ local function addSpinner(model: Instance)
 end
 
 function WorldText.start()
-	for _, label in CollectionService:GetTagged("LocText") do
+	-- leaderboards and service signs change their key/argument at runtime
+	local function watch(label: Instance)
 		translate(label)
+		for _, attr in { "LocKey", "LocArg" } do
+			label:GetAttributeChangedSignal(attr):Connect(function()
+				translate(label)
+			end)
+		end
 	end
-	CollectionService:GetInstanceAddedSignal("LocText"):Connect(translate)
-	-- leaderboards switch rows between "empty" and names at runtime
-	CollectionService:GetInstanceAddedSignal("LocText"):Connect(function(label)
-		label:GetAttributeChangedSignal("LocKey"):Connect(function()
-			translate(label)
-		end)
-	end)
+	for _, label in CollectionService:GetTagged("LocText") do
+		watch(label)
+	end
+	CollectionService:GetInstanceAddedSignal("LocText"):Connect(watch)
 
 	ProximityPromptService.PromptShown:Connect(function(prompt)
 		translatePrompt(prompt)

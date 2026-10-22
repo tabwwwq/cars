@@ -28,6 +28,7 @@ local map: Frame
 local arrow: Frame
 local target: Frame
 local dots: { [Model]: Frame } = {}
+local homeMarker: TextLabel
 
 local function toMap(x: number, z: number): UDim2
 	return UDim2.fromOffset((x + HALF) * SCALE, (z + HALF) * SCALE)
@@ -98,6 +99,11 @@ local function drawWorld()
 	end
 	-- speed trap
 	rect(Vector3.new(Layout.SpeedTrap.x, 0, Layout.SpeedTrap.z), Vector2.new(30, 80), Color3.fromRGB(230, 60, 60))
+	-- car-service plots
+	for _, cf in Layout.ServicePlots do
+		rect(cf.Position, Layout.ServicePlotSize, Color3.fromRGB(150, 150, 156))
+		rect(cf * Vector3.new(0, 0, -44), Vector2.new(186, 82), Color3.fromRGB(70, 74, 92))
+	end
 end
 
 local function heading(look: Vector3): number
@@ -157,6 +163,20 @@ function Minimap.init()
 	})
 	Kit.corner(target, 6)
 	Kit.stroke(target, Color3.new(0, 0, 0), 2, 0.2)
+	-- the own car-service plot
+	homeMarker = Kit.label({
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.fromOffset(26, 26),
+		BackgroundColor3 = Color3.fromRGB(40, 170, 160),
+		BackgroundTransparency = 0,
+		Text = "🔧",
+		TextSize = 15,
+		Visible = false,
+		ZIndex = 8,
+		Parent = map,
+	})
+	Kit.corner(homeMarker, 13)
+	Kit.stroke(homeMarker, Color3.new(1, 1, 1), 2, 0.1)
 	-- the player's arrow stays in the middle
 	arrow = Kit.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -200,6 +220,13 @@ end
 
 function Minimap.start()
 	local player = Players.LocalPlayer
+	ClientState.ServiceChanged:Connect(function(s)
+		local origin = s and s.origin
+		if typeof(origin) == "CFrame" then
+			homeMarker.Visible = true
+			homeMarker.Position = toMap(origin.X, origin.Z)
+		end
+	end)
 	CollectionService:GetInstanceRemovedSignal("Car"):Connect(function(model)
 		local dot = dots[model :: Model]
 		if dot then

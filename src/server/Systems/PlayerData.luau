@@ -20,6 +20,7 @@ local CarCatalog = require(Shared.CarCatalog)
 local Config = require(Shared.Config)
 local Net = require(Shared.Net)
 local Paints = require(Shared.Paints)
+local ServiceConfig = require(Shared.ServiceConfig)
 local Signal = require(Shared.Util.Signal)
 local Types = require(Shared.Types)
 
@@ -30,7 +31,7 @@ PlayerData.Loaded = Signal.new() -- (player, profile)
 PlayerData.Changed = Signal.new() -- (player, profile)
 PlayerData.CashChanged = Signal.new() -- (player, newCash, delta, reason)
 
-local CURRENT_VERSION = 2
+local CURRENT_VERSION = 3
 local IS_STUDIO = RunService:IsStudio()
 
 type State = {
@@ -48,6 +49,14 @@ local store: DataStore? = nil
 --------------------------------------------------------------------------------
 -- Profile shape
 --------------------------------------------------------------------------------
+
+local function defaultService(): Types.ServiceProfile
+	local upgrades = {}
+	for _, u in ServiceConfig.Upgrades do
+		upgrades[u.id] = 0
+	end
+	return { level = 1, xp = 0, orders = 0, earned = 0, stars = 0, upgrades = upgrades, tutorial = 0 }
+end
 
 local function defaultProfile(): Profile
 	local starter = CarCatalog.get(Config.StarterCarId)
@@ -69,6 +78,7 @@ local function defaultProfile(): Profile
 		stats = { distance = 0, drifts = 0, airtime = 0, races = 0, earned = 0 },
 		daily = { last = 0, streak = 0 },
 		finishes = {},
+		service = defaultService(),
 	}
 end
 PlayerData.defaultProfile = defaultProfile
@@ -78,6 +88,11 @@ local MIGRATIONS: { [number]: (any) -> any } = {
 	[1] = function(data)
 		data.medals = data.medals or {}
 		data.finishes = data.finishes or {}
+		return data
+	end,
+	-- v2 -> v3: the car-service mode (level, xp, upgrades)
+	[2] = function(data)
+		data.service = data.service or defaultService()
 		return data
 	end,
 }
@@ -172,6 +187,21 @@ local function reconcile(data: any): Profile
 	if typeof(data.daily) == "table" then
 		out.daily.last = num(data.daily.last, 0, 0)
 		out.daily.streak = math.floor(num(data.daily.streak, 0, 0, 1000))
+	end
+	local svc = data.service
+	if typeof(svc) == "table" then
+		local o = out.service
+		o.level = math.floor(num(svc.level, 1, 1, ServiceConfig.MaxLevel))
+		o.xp = math.floor(num(svc.xp, 0, 0, 1e9))
+		o.orders = math.floor(num(svc.orders, 0, 0))
+		o.earned = math.floor(num(svc.earned, 0, 0))
+		o.stars = math.floor(num(svc.stars, 0, 0))
+		o.tutorial = math.floor(num(svc.tutorial, 0, 0, 100))
+		if typeof(svc.upgrades) == "table" then
+			for _, u in ServiceConfig.Upgrades do
+				o.upgrades[u.id] = math.floor(num(svc.upgrades[u.id], 0, 0, #u.levels))
+			end
+		end
 	end
 	return out
 end
@@ -287,6 +317,7 @@ function PlayerData.publicSnapshot(data: Profile)
 		stats = data.stats,
 		daily = data.daily,
 		finishes = data.finishes,
+		service = data.service,
 		serverTime = os.time(),
 	}
 end

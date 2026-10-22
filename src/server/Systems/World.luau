@@ -21,18 +21,20 @@ local Decor = require(WorldModules.Decor)
 local Layout = require(Shared.WorldLayout)
 local Plaza = require(WorldModules.Plaza)
 local Roads = require(WorldModules.Roads)
+local ServicePlots = require(WorldModules.ServicePlots)
 local Stunts = require(WorldModules.Stunts)
 local TerrainGen = require(WorldModules.TerrainGen)
 local TrackBuilder = require(WorldModules.TrackBuilder)
 
 local World = {}
 
-World.VERSION = 3
+World.VERSION = 4
 World.Layout = Layout
 World.Ready = false
 World.ReadySignal = Signal.new()
 World.Tracks = {} :: { [string]: TrackBuilder.TrackData }
 World.Root = nil :: Folder?
+World.ServicePlots = {} :: { ServicePlots.PlotData }
 
 local function trailInfo()
 	local def = Tracks.get("trail")
@@ -62,6 +64,7 @@ local function buildAll(): Folder
 	Stunts.buildPark(root)
 	Stunts.buildDrift(root)
 	World.Tracks = TrackBuilder.build(root, trailHeights, if trail then trail.samples else nil, true)
+	World.ServicePlots = ServicePlots.buildAll(root)
 
 	local paths = {}
 	for _, t in Tracks.List do
@@ -110,6 +113,7 @@ local function setup()
 		local trail = trailInfo()
 		local heights = if trail then TerrainGen.trailHeights(trail) else nil
 		World.Tracks = TrackBuilder.build(root, heights, if trail then trail.samples else nil, false)
+		World.ServicePlots = ServicePlots.find(root) or ServicePlots.buildAll(root)
 		World.Root = root
 	else
 		World.Root = buildAll()

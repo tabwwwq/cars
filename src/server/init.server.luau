@@ -19,6 +19,7 @@ local ORDER = {
 	"Leaderboards",
 	"Economy",
 	"Races",
+	"Service",
 	"DevTools",
 }
 

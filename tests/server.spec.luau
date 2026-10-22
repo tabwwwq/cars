@@ -88,6 +88,9 @@ test("the whole world builds without errors", function()
 	for _, t in Tracks.List do
 		table.insert(paths, { points = t.points, clearance = t.width / 2 + 14 })
 	end
+	local ServicePlots = world.require(WorldModules.ServicePlots)
+	local plots = ServicePlots.buildAll(root)
+	assertTrue(#plots == 6, "expected 6 service plots")
 	Decor.build(root, trees, paths)
 	builtRoot = root
 	builtTracks = data

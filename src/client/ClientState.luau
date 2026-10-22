@@ -21,6 +21,25 @@ ClientState.telemetry = nil :: any -- CarPhysics telemetry of the own car
 ClientState.racing = false
 ClientState.raceTarget = nil :: Vector3? -- next checkpoint while racing
 
+ClientState.service = nil :: any -- the own service plot snapshot (see Systems/Service)
+ClientState.ServiceChanged = Signal.new() -- (snapshot)
+ClientState.serviceOffset = 0 -- server time - local clock when the snapshot arrived
+ClientState.workingJob = nil :: number? -- job id while the workshop minigame is open
+ClientState.WorkingChanged = Signal.new() -- (jobId?)
+
+function ClientState.setService(s)
+	ClientState.service = s
+	ClientState.ServiceChanged:Fire(s)
+end
+
+function ClientState.setWorking(id: number?)
+	if ClientState.workingJob == id then
+		return
+	end
+	ClientState.workingJob = id
+	ClientState.WorkingChanged:Fire(id)
+end
+
 function ClientState.setProfile(p)
 	ClientState.profile = p
 	ClientState.ProfileChanged:Fire(p)

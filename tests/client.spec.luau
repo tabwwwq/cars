@@ -41,7 +41,7 @@ local Net = world.require(world.shared.Net)
 Net.init() -- the client reuses the folder the server would create
 
 local controllers = {}
-local ORDER = { "Loading", "Notifications", "Hud", "Drive", "VehicleFX", "Garage", "RaceUI", "Minimap", "WorldText" }
+local ORDER = { "Loading", "Notifications", "Hud", "Drive", "VehicleFX", "Garage", "RaceUI", "Minimap", "WorldText", "ServiceFX", "Workshop", "Service" }
 
 local function fire(service, event, ...)
 	game:GetService(service)[event]:Fire(...)
@@ -183,6 +183,204 @@ test("notifications and rewards render", function()
 	remotes.Reward.OnClientEvent:Fire("drift", 120, 3.4)
 	remotes.Reward.OnClientEvent:Fire("speedtrap", 350, 210)
 	remotes.Reward.OnClientEvent:Fire("distance", 12, 300)
+end)
+
+test("car service: orders and business windows, and a full hands-on wash", function()
+	local ClientState = world.require(world.client.ClientState)
+	local ServiceModels = world.require(world.shared.ServiceModels)
+	local CFrame = env.CFrame
+	local remotes = game:GetService("ReplicatedStorage").CarsRemotes
+	local now = env.workspace:GetServerTimeNow()
+
+	-- a customer bike parked in bay 1, animated by ServiceFX
+	local bike = ServiceModels.build("citybike", { paint = 5 })
+	ServiceModels.weldToRoot(bike)
+	bike:SetAttribute("ServiceJob", 1)
+	bike:SetAttribute("Size", "tiny")
+	bike:SetAttribute("Height", 3.5)
+	bike:SetAttribute("MovePath", "0,0;0,-20;10,-40")
+	bike:SetAttribute("MoveStart", now - 1)
+	bike:SetAttribute("MoveSpeed", 10)
+	bike:SetAttribute("MoveY", 0)
+	bike.Parent = env.workspace
+	game:GetService("CollectionService"):AddTag(bike, "ServiceCustomer")
+	local worker = ServiceModels.person("Worker_1", {})
+	ServiceModels.weldToRoot(worker)
+	worker:SetAttribute("Working", true)
+	worker.Parent = env.workspace
+	game:GetService("CollectionService"):AddTag(worker, "ServiceWorker")
+
+	local job = {
+		id = 1,
+		tier = "bikes",
+		source = "model",
+		vehicle = "citybike",
+		services = { "wash" },
+		paint = 5,
+		reward = 50,
+		xp = 10,
+		state = "waiting",
+		steps = { "foam", "scrub", "rinse", "dry" },
+		step = 1,
+		size = "tiny",
+		waitingSince = now,
+	}
+	local paintJob = {
+		id = 2,
+		tier = "moto",
+		source = "car",
+		vehicle = "comet",
+		services = { "repair", "paint" },
+		paint = 3,
+		target = 5,
+		reward = 400,
+		xp = 30,
+		state = "inBay",
+		assignee = "worker",
+		worker = 1,
+		steps = { "wrench", "pump", "sand", "spray" },
+		step = 1,
+		size = "car",
+		workerStart = now - 5,
+		workerDuration = 20,
+	}
+	local function push(jobs)
+		remotes.ServiceState.OnClientEvent:Fire({
+			plot = 1,
+			origin = CFrame.new(-310, 0.2, -115),
+			reception = CFrame.new(-386, 3, -99),
+			jobs = jobs,
+			workers = { { index = 1, state = "working", job = 2 } },
+			serverTime = now,
+		})
+	end
+	push({ job, paintJob })
+	assertTrue(ClientState.service ~= nil and #ClientState.service.jobs == 2, "service snapshot not stored")
+	for _ = 1, 5 do
+		fire("RunService", "RenderStepped", 1 / 60)
+		fire("RunService", "Heartbeat", 1)
+	end
+
+	local Service = controllers.Service
+	Service.openOrders()
+	local gui = playerGui:FindFirstChild("CarsService")
+	local cards = 0
+	for _, d in gui:GetDescendants() do
+		if d.ClassName == "Frame" and string.match(d.Name, "^Order%d") then
+			cards += 1
+		end
+	end
+	assertTrue(cards == 2, "expected 2 order cards, got " .. cards)
+	Service.openBusiness()
+	local upgradeButtons = 0
+	for _, d in gui:GetDescendants() do
+		if d.ClassName == "TextButton" and d.Parent then
+			upgradeButtons += 1
+			d.Activated:Fire()
+		end
+	end
+	assertTrue(upgradeButtons > 8, "business window has too few buttons")
+	remotes.ServiceEvent.OnClientEvent:Fire("arrived", 1)
+	remotes.ServiceEvent.OnClientEvent:Fire("levelup", 4)
+	remotes.ServiceEvent.OnClientEvent:Fire("done", { job = 9, reward = 50, tip = 12, xp = 10, stars = 3, worker = false, vehicle = "bmx", source = "model" })
+	remotes.Reward.OnClientEvent:Fire("service", 62, 3)
+
+	-- take it and work on it: stub the server answers
+	local Net = world.require(world.shared.Net)
+	local realRequest = Net.request
+	local stepCalls = 0
+	Net.request = function(action, id, step)
+		if action == "ServiceWork" then
+			return { ok = true, args = { 1 } }
+		elseif action == "ServiceStep" then
+			stepCalls += 1
+			return { ok = true, args = { step + 1, step == 4 } }
+		end
+		return { ok = true }
+	end
+	job.state = "inBay"
+	job.assignee = "player"
+	job.bay = 1
+	push({ job, paintJob })
+	local Workshop = controllers.Workshop
+	assertTrue(Workshop.enter(1), "workshop did not open")
+	assertTrue(ClientState.workingJob == 1, "working state not set")
+	local hooks = Workshop._test
+	-- brush every spot of the current step until the whole order is done
+	local seenSteps = {}
+	for _ = 1, 400 do
+		local sess = hooks.session()
+		if sess.finished then
+			break
+		end
+		if sess.started ~= sess.step then
+			hooks.startStep() -- the real client waits half a second first
+		end
+		if not seenSteps[sess.step] then
+			seenSteps[sess.step] = #sess.spots
+		end
+		for _, spot in table.clone(sess.spots) do
+			hooks.brushAt(hooks.spotPosition(spot), 0.2)
+		end
+		fire("RunService", "RenderStepped", 1 / 60)
+	end
+	for stepIndex = 1, 4 do
+		assertTrue((seenSteps[stepIndex] or 0) >= 4, "too few spots on step " .. stepIndex .. ": " .. tostring(seenSteps[stepIndex]))
+	end
+	assertTrue(stepCalls == 4, "expected 4 step reports, got " .. stepCalls)
+	assertTrue(hooks.session().finished, "order not finished")
+	Workshop.exit(true)
+	assertTrue(ClientState.workingJob == nil and not Workshop.isActive(), "workshop did not close")
+
+	-- paint job: sanding then spraying the body parts
+	paintJob.assignee = "player"
+	paintJob.step = 3
+	push({ paintJob })
+	local car = world.require(world.shared.CarBuilder).build(world.require(world.shared.CarCatalog).get("comet"), { preview = true })
+	local root = Instance.new("Part")
+	root.Name = "Root"
+	root.Parent = car
+	car.PrimaryPart = root
+	car:SetAttribute("ServiceJob", 2)
+	car.Parent = env.workspace
+	game:GetService("CollectionService"):AddTag(car, "ServiceCustomer")
+	Net.request = function(action, id, step)
+		if action == "ServiceWork" then
+			return { ok = true, args = { 3 } }
+		elseif action == "ServiceStep" then
+			return { ok = true, args = { step + 1, step == 4 } }
+		end
+		return { ok = true }
+	end
+	assertTrue(Workshop.enter(2), "paint job did not open")
+	local sess = hooks.session()
+	assertTrue(sess.steps[sess.step] == "sand" and #sess.spots > 0, "sanding spots missing")
+	for _ = 1, 40 do
+		if sess.step ~= 3 then
+			break
+		end
+		for _, spot in table.clone(sess.spots) do
+			hooks.brushAt(hooks.spotPosition(spot), 0.25)
+		end
+	end
+	if sess.started ~= sess.step then
+		hooks.startStep()
+	end
+	assertTrue(sess.steps[sess.step] == "spray" and #sess.paint > 3, "spray step has no paint parts")
+	for _ = 1, 60 do
+		if sess.finished then
+			break
+		end
+		for _, unit in sess.paint do
+			hooks.brushAt(unit.part.Position, 0.3)
+		end
+	end
+	assertTrue(sess.finished, "paint job did not finish")
+	for _, unit in sess.paint do
+		assertTrue(unit.progress >= 1, "a body part was left unpainted")
+	end
+	Workshop.exit(true)
+	Net.request = realRequest
 end)
 
 return tests

@@ -915,6 +915,33 @@ end
 function methods.Sit() end
 function methods.Kick() end
 function methods.LoadCharacter() end
+-- Camera rays: a plain pinhole camera looking down the CFrame's -Z.
+function methods.ViewportPointToRay(self, x, y)
+	local cf = self.CFrame
+	local vp = self.ViewportSize or Vector2.new(1920, 1080)
+	local h = math.tan(math.rad(self.FieldOfView or 70) / 2)
+	local nx = (x / vp.X) * 2 - 1
+	local ny = 1 - (y / vp.Y) * 2
+	local dir = (cf.LookVector + cf.RightVector * (nx * h * vp.X / vp.Y) + cf.UpVector * (ny * h)).Unit
+	return { Origin = cf.Position, Direction = dir }
+end
+methods.ScreenPointToRay = methods.ViewportPointToRay
+function methods.WorldToViewportPoint(self, p)
+	local cf = self.CFrame
+	local vp = self.ViewportSize or Vector2.new(1920, 1080)
+	local h = math.tan(math.rad(self.FieldOfView or 70) / 2)
+	local rel = cf:PointToObjectSpace(p)
+	local depth = -rel.Z
+	if depth <= 1e-6 then
+		return v3(0, 0, depth), false
+	end
+	local nx = rel.X / (depth * h * vp.X / vp.Y)
+	local ny = rel.Y / (depth * h)
+	return v3((nx + 1) / 2 * vp.X, (1 - ny) / 2 * vp.Y, depth), true
+end
+function methods.GetMouseLocation()
+	return Vector2.new(960, 540)
+end
 function methods.GetExtentsSize(self)
 	local _, size = methods.GetBoundingBox(self)
 	return size

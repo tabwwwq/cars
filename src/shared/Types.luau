@@ -127,6 +127,18 @@ export type Profile = {
 	},
 	daily: { last: number, streak: number },
 	finishes: { [string]: boolean },
+	service: ServiceProfile,
+}
+
+-- Car-service progress (see ServiceConfig)
+export type ServiceProfile = {
+	level: number,
+	xp: number,
+	orders: number,
+	earned: number,
+	stars: number,
+	upgrades: { [string]: number },
+	tutorial: number,
 }
 
 -- Effective (upgraded) stats the physics actually uses

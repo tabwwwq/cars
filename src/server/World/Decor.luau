@@ -82,6 +82,11 @@ function Decor.build(root: Instance, cityTrees: { Vector3 }, paths: { { points: 
 		if x > -735 and x < 735 and z > -1535 and z < -415 then
 			return false -- city
 		end
+		for _, plot in Layout.ServicePlots do
+			if inRect(x, z, plot.Position, Layout.ServicePlotSize, 16) then
+				return false
+			end
+		end
 		if math.abs(z - 450) < 50 then
 			return false -- highway band
 		end

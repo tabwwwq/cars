@@ -11,13 +11,31 @@ simulation (`CarPhysics`), a generated world (terrain, roads, city, plaza, stunt
 drift arena, 4 race tracks), races with medals, economy, garage (paint/tuning) and
 session-locked DataStore saves.
 
+## Car-service mode
+
+The main game loop besides driving. Data and balance: `src/shared/ServiceConfig.luau`
+(levels/XP, vehicle tiers bikes -> buses, services and their hands-on steps, upgrades,
+staff, timing). Vehicles that are not cars + workers: `src/shared/ServiceModels.luau`
+(same conventions as CarBuilder, anchored `Root` at the ground origin; `weldToRoot`).
+Plots: `WorldLayout.ServicePlots` (plot space: +Z faces the west street) built by
+`World/ServicePlots.luau`. Server: `Systems/Service.luau` (one plot per player, customers,
+orders, bays, step validation with a minimum time per step, staff, upgrades; requests
+`ServiceTake/Work/Step/Leave/Dismiss/Buy/Home/Tutorial`, events `ServiceState`,
+`ServiceEvent`). Client: `Controllers/Service.luau` (rail of big buttons, orders/business
+windows, result and level-up cards, prompts), `Controllers/Workshop.luau` (the minigame:
+spots placed by raycasts, brushing, camera orbit), `Controllers/ServiceFX.luau`
+(animates paths set by the server — see `Util/Path.luau`; the server never moves models
+per frame). Profile field `service` (v3). Add a vehicle: a builder + `ServiceModels.List`
+entry, then list its id in a tier. Add a step: `ServiceConfig.Steps` + a service's `steps`
++ `STEP_FLOW`/`LOOK`/tool in `Workshop.luau` + `Step_*`/`StepHint_*` strings.
+
 ## Commands
 
 ```bash
 tools/test.sh            # Luau test suite outside Roblox (builds tools/luau-runner with cargo once)
-tools/test.sh physics    # one spec file (cars | physics | server | client)
+tools/test.sh physics    # one spec file (cars | physics | server | client | service)
 tools/build.sh           # rojo build -> build/CarsGame.rbxlx (place) + build/CarsMode.rbxmx (installer model)
-tools/render.sh          # docs/cars.png + docs/map.png from the dumps the tests write to tests/out/
+tools/render.sh          # docs/cars.png, service.png, service_plot.png, map.png from the test dumps in tests/out/
 selene src && stylua --check src tests
 python3 tools/check_api.py <Full-API-Dump.json> src   # class/property/method/enum names vs the real Roblox API
 ```
@@ -110,4 +128,6 @@ this repo yet. When asked to bring it in:
 - Real engine/horn/siren sounds (only hooks in `Config.Sounds` + `VehicleFX`).
 - Multiplayer races with a shared start, ghosts of best laps, police chases.
 - More areas (airport, mountain road, harbour) and missions/jobs (taxi, delivery).
+- Car service: tuning orders (wheels, spoilers), customer NPCs walking to the board,
+  co-op work on a friend's plot, sounds for the tools.
 - Gamepasses/Developer products (MarketplaceService) — none yet.

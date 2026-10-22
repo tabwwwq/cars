@@ -32,6 +32,9 @@ local ORDER = {
 	"RaceUI",
 	"Minimap",
 	"WorldText",
+	"ServiceFX",
+	"Workshop",
+	"Service",
 }
 
 local loaded: { [string]: any } = {}

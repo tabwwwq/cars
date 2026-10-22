@@ -99,6 +99,8 @@ local REWARD_KEYS = {
 	drift = "RewardDrift",
 	air = "RewardAir",
 	race = "RewardRace",
+	service = "RewardService",
+	serviceWorker = "RewardServiceWorker",
 }
 
 function Notifications.reward(kind: string, amount: number, detail: any)
@@ -144,7 +146,7 @@ function Notifications.init()
 	Kit.list(toastHolder, Enum.FillDirection.Vertical, 8, Enum.HorizontalAlignment.Center)
 	rewardHolder = Kit.new("Frame", {
 		Name = "Rewards",
-		Position = UDim2.new(0, 24, 0, 86),
+		Position = UDim2.new(0, 120, 0, 132),
 		Size = UDim2.new(0, 360, 0, 200),
 		BackgroundTransparency = 1,
 		Parent = gui,

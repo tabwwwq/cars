@@ -156,7 +156,7 @@ function Roads.build(root: Instance)
 	local lamps = Build.folder("StreetLights", root)
 
 	for _, r in Layout.Roads do
-		Roads.segment(folder, r.a, r.b, r.w, r.style)
+		Roads.segment(folder, r.a, r.b, r.w, r.style, { lamps = (r :: any).lamps })
 	end
 
 	-- city grid: junction boxes at every node, streets between them
