@@ -14422,29 +14422,28 @@ local function drawPaint()
 	else
 		local list = Kit.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = area })
 		Kit.new("UIGridLayout", {
-			CellSize = UDim2.new(0, 40, 0, 40),
-			CellPadding = UDim2.new(0, 7, 0, 7),
+			CellSize = UDim2.new(0, 42, 0, 42),
+			CellPadding = UDim2.new(0, 8, 0, 12),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			Parent = list,
 		})
 		if paintSlot == "glow" then
-			local off = Kit.button({
+			Kit.button({
 				Text = Strings.get("GlowOff"),
 				TextSize = 11,
 				LayoutOrder = 0,
-				BackgroundColor3 = T.Card,
+				BackgroundColor3 = if save and save.glow == 0 then T.Accent else T.Card,
 				onClick = function()
 					apply(0)
 				end,
 				Parent = list,
 			})
-			if save and save.glow == 0 then
-				Kit.stroke(off, T.Accent, 3, 0)
-			end
 		end
 		for i, swatch in Paints.Palette do
-			local b = Kit.button({
-				Text = "",
+			local current = save and (save :: any)[paintSlot] == i
+			Kit.button({
+				Text = if current then "✔" else "",
+				TextSize = 20,
 				LayoutOrder = i,
 				BackgroundColor3 = swatch.color,
 				cornerRadius = 20,
@@ -14453,17 +14452,15 @@ local function drawPaint()
 				end,
 				Parent = list,
 			})
-			local current = save and (save :: any)[paintSlot] == i
-			Kit.stroke(b, if current then Color3.new(1, 1, 1) else Color3.new(0, 0, 0), if current then 3 else 1, if current then 0 else 0.6)
 		end
 		priceLabel.Text = Strings.get("PriceEach", Format.money(slotPrice(paintSlot, 1, save)))
 	end
 end
 
 local UPGRADES = {
-	{ kind = "Engine", field = "engine", title = "UpgradeEngine", desc = "UpgradeEngineDesc", color = T.Accent },
-	{ kind = "Tires", field = "tires", title = "UpgradeTires", desc = "UpgradeTiresDesc", color = T.Accent2 },
-	{ kind = "Nitro", field = "nitro", title = "UpgradeNitro", desc = "UpgradeNitroDesc", color = Color3.fromRGB(170, 100, 255) },
+	{ kind = "Engine", field = "engine", title = "UpgradeEngine", desc = "UpgradeEngineDesc", color = T.Accent, icon = "⚙️" },
+	{ kind = "Tires", field = "tires", title = "UpgradeTires", desc = "UpgradeTiresDesc", color = T.Accent2, icon = "⚫" },
+	{ kind = "Nitro", field = "nitro", title = "UpgradeNitro", desc = "UpgradeNitroDesc", color = T.Purple, icon = "🔥" },
 }
 
 local function drawTuning()
@@ -14481,57 +14478,58 @@ local function drawTuning()
 	for i, u in UPGRADES do
 		local spec = (Config.Upgrades :: any)[u.kind]
 		local level = if save then (save :: any)[u.field] else 0
-		local row = Kit.new("Frame", {
-			Size = UDim2.new(1, 0, 0, 62),
-			BackgroundColor3 = T.Card,
-			BorderSizePixel = 0,
+		local row = Kit.card({
+			Size = UDim2.new(1, 0, 0, 66),
 			LayoutOrder = i,
 			Parent = list,
 		})
-		Kit.corner(row, 10)
+		Kit.iconTile(row, u.icon, u.color, 46, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 10, 0.5, 0) })
 		Kit.label({
-			Position = UDim2.new(0, 14, 0, 8),
-			Size = UDim2.new(0, 220, 0, 22),
+			Position = UDim2.new(0, 66, 0, 8),
+			Size = UDim2.new(0, 190, 0, 24),
 			Text = Strings.get(u.title),
-			TextSize = 18,
+			TextSize = 20,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 2,
 			Parent = row,
 		})
 		Kit.label({
-			Position = UDim2.new(0, 14, 0, 32),
-			Size = UDim2.new(0, 230, 0, 18),
+			Position = UDim2.new(0, 66, 0, 34),
+			Size = UDim2.new(0, 218, 0, 18),
 			Text = Strings.get(u.desc),
 			TextSize = 13,
+			Font = T.FontMedium,
 			TextColor3 = T.Muted,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = row,
 		})
 		local pips = Kit.new("Frame", {
-			Position = UDim2.new(0, 250, 0.5, -8),
-			Size = UDim2.new(0, 130, 0, 16),
+			Position = UDim2.new(0, 290, 0.5, -7),
+			Size = UDim2.new(0, 120, 0, 14),
 			BackgroundTransparency = 1,
 			Parent = row,
 		})
 		Kit.list(pips, Enum.FillDirection.Horizontal, 4)
 		for k = 1, spec.MaxLevel do
 			local pip = Kit.new("Frame", {
-				Size = UDim2.new(0, 22, 1, 0),
-				BackgroundColor3 = if k <= level then u.color else Color3.fromRGB(70, 76, 96),
+				Size = UDim2.new(0, 20, 1, 0),
+				BackgroundColor3 = if k <= level then u.color else Color3.fromRGB(20, 30, 62),
 				BorderSizePixel = 0,
 				LayoutOrder = k,
 				Parent = pips,
 			})
-			Kit.corner(pip, 4)
+			Kit.corner(pip, 7)
+			Kit.stroke(pip, T.Ink, 2, 0)
 		end
 		local maxed = level >= spec.MaxLevel
 		local price = if maxed then 0 else CarCatalog.getUpgradePrice(def, u.kind, level + 1)
 		Kit.button({
 			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -12, 0.5, 0),
-			Size = UDim2.new(0, 170, 0, 40),
-			Text = if maxed then Strings.get("MaxLevel") else Strings.get("Upgrade", Format.money(price :: number)),
-			TextSize = 15,
-			BackgroundColor3 = if maxed then T.PanelAlt else T.Good,
+			Position = UDim2.new(1, -12, 0.5, -2),
+			Size = UDim2.new(0, 150, 0, 40),
+			Text = if maxed then "✔ " .. Strings.get("MaxLevel") else "💰 " .. Format.money(price :: number),
+			TextSize = 19,
+			BackgroundColor3 = if maxed then T.Disabled else T.Good,
 			onClick = function()
 				if not maxed then
 					task.spawn(request, "BuyUpgrade", def.id, u.kind)
@@ -14592,21 +14590,20 @@ local function styleCard(id: string)
 	end
 	local stroke = card:FindFirstChildOfClass("UIStroke")
 	if stroke then
-		stroke.Color = if id == selectedId then T.Accent else Color3.new(1, 1, 1)
-		stroke.Transparency = if id == selectedId then 0 else 0.88
-		stroke.Thickness = if id == selectedId then 2 else 1
+		stroke.Color = if id == selectedId then T.Accent else T.Ink
+		stroke.Thickness = if id == selectedId then 4 else 2.5
 	end
 	local def = CarCatalog.get(id)
 	local status = card:FindFirstChild("Status") :: TextLabel?
 	if def and status then
 		if owned(id) then
 			local p = profile()
-			status.Text = if p and p.selected == id then "✓ " .. Strings.get("Owned") else Strings.get("Owned")
-			status.TextColor3 = T.Good
+			status.Text = if p and p.selected == id then "✔ " .. Strings.get("Owned") else Strings.get("Owned")
+			status.TextColor3 = Color3.fromRGB(120, 245, 140)
 		else
 			status.Text = if def.price == 0 then Strings.get("Free") else Format.money(def.price)
 			local p = profile()
-			status.TextColor3 = if p and p.cash >= def.price then T.Gold else T.Muted
+			status.TextColor3 = if p and p.cash >= def.price then T.Gold else Color3.fromRGB(255, 130, 130)
 		end
 	end
 end
@@ -14634,49 +14631,47 @@ local function buildCards()
 			continue
 		end
 		local class = CarCatalog.getClass(def.class)
-		local card = Kit.new("Frame", {
+		local card = Kit.card({
 			Name = def.id,
-			BackgroundColor3 = T.Card,
-			BorderSizePixel = 0,
 			LayoutOrder = i,
 			Parent = grid,
 		})
-		Kit.corner(card, 10)
-		Kit.stroke(card)
 		local strip = Kit.new("Frame", {
-			Size = UDim2.new(0, 6, 1, -16),
-			Position = UDim2.new(0, 8, 0, 8),
+			Size = UDim2.new(0, 8, 1, -18),
+			Position = UDim2.new(0, 9, 0, 9),
 			BackgroundColor3 = class.color,
 			BorderSizePixel = 0,
 			Parent = card,
 		})
-		Kit.corner(strip, 3)
+		Kit.corner(strip, 4)
+		Kit.stroke(strip, T.Ink, 2, 0)
 		Kit.label({
-			Position = UDim2.new(0, 22, 0, 10),
-			Size = UDim2.new(1, -30, 0, 24),
+			Position = UDim2.new(0, 26, 0, 8),
+			Size = UDim2.new(1, -34, 0, 26),
 			Text = def.name,
-			TextSize = 19,
-			Font = T.FontBlack,
+			TextSize = 21,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 2,
 			Parent = card,
 		})
 		Kit.label({
-			Position = UDim2.new(0, 22, 0, 34),
-			Size = UDim2.new(1, -30, 0, 18),
+			Position = UDim2.new(0, 26, 0, 34),
+			Size = UDim2.new(1, -34, 0, 18),
 			Text = Strings.pick(class.name),
-			TextSize = 13,
+			TextSize = 14,
 			TextColor3 = class.color,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 1.5,
 			Parent = card,
 		})
 		Kit.label({
 			Name = "Status",
-			Position = UDim2.new(0, 22, 1, -30),
-			Size = UDim2.new(0.6, 0, 0, 22),
+			Position = UDim2.new(0, 26, 1, -32),
+			Size = UDim2.new(0.6, 0, 0, 24),
 			Text = "",
-			TextSize = 16,
-			Font = T.FontBlack,
+			TextSize = 19,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 2,
 			Parent = card,
 		})
 		local stats = CarCatalog.getEffectiveStats(def, nil)
@@ -14696,11 +14691,12 @@ local function buildCards()
 			ZIndex = 5,
 			Parent = card,
 		})
+		local hover = Kit.new("UIScale", { Parent = card })
 		hit.MouseEnter:Connect(function()
-			Kit.tween(card, 0.1, { BackgroundColor3 = T.CardHover })
+			Kit.tween(hover, 0.1, { Scale = 1.03 }, Enum.EasingStyle.Back)
 		end)
 		hit.MouseLeave:Connect(function()
-			Kit.tween(card, 0.1, { BackgroundColor3 = T.Card })
+			Kit.tween(hover, 0.1, { Scale = 1 })
 		end)
 		hit.Activated:Connect(function()
 			selectCar(def.id)
@@ -14717,12 +14713,12 @@ local function buildChips()
 	end
 	for i, e in entries do
 		local chip = Kit.button({
-			Size = UDim2.new(0, 0, 1, 0),
+			Size = UDim2.new(0, 0, 1, -8),
 			AutomaticSize = Enum.AutomaticSize.X,
 			Text = "  " .. e.name .. "  ",
-			TextSize = 14,
-			Font = T.Font,
+			TextSize = 15,
 			LayoutOrder = i,
+			cornerRadius = 10,
 			BackgroundColor3 = if e.id == classFilter then T.Accent else T.Card,
 			onClick = function()
 				classFilter = e.id
@@ -14736,7 +14732,7 @@ local function buildChips()
 			Parent = chips,
 		})
 		chip:SetAttribute("ClassId", e.id)
-		chip.TextColor3 = if e.id then e.color else T.Text
+		chip.TextColor3 = if e.id then e.color:Lerp(Color3.new(1, 1, 1), 0.35) else T.Text
 	end
 end
 
@@ -14750,8 +14746,8 @@ local function buildWindow()
 	Kit.new("TextButton", {
 		Name = "Backdrop",
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 0.45,
+		BackgroundColor3 = Color3.fromRGB(4, 8, 20),
+		BackgroundTransparency = 0.4,
 		Text = "",
 		AutoButtonColor = false,
 		Parent = gui,
@@ -14761,28 +14757,42 @@ local function buildWindow()
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.new(0, 1180, 0, 700),
-		BackgroundColor3 = T.Bg,
-		BackgroundTransparency = 0.04,
 		Parent = gui,
 	})
-	-- header
-	Kit.label({
-		Position = UDim2.new(0, 22, 0, 12),
-		Size = UDim2.new(0, 300, 0, 40),
-		Text = Strings.get("GarageTitle"),
-		Font = T.FontBlack,
-		TextSize = 32,
-		TextColor3 = T.Accent,
-		TextXAlignment = Enum.TextXAlignment.Left,
+	Kit.corner(window, 22)
+	local windowStroke = window:FindFirstChildOfClass("UIStroke")
+	if windowStroke then
+		windowStroke.Thickness = 4
+	end
+	-- header ribbon
+	local header = Kit.new("Frame", {
+		Position = UDim2.fromOffset(10, 10),
+		Size = UDim2.new(1, -20, 0, 52),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
 		Parent = window,
 	})
+	Kit.corner(header, 16)
+	Kit.stroke(header, T.Ink, 3, 0)
+	Kit.gradient(header, Color3.fromRGB(255, 130, 175), Color3.fromRGB(235, 60, 120), 90)
+	Kit.label({
+		Position = UDim2.new(0, 18, 0, 0),
+		Size = UDim2.new(0, 400, 1, 0),
+		Text = "🚗 " .. Strings.get("GarageTitle"),
+		TextSize = 32,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 3,
+		Parent = header,
+	})
 	Kit.button({
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -14, 0, 12),
-		Size = UDim2.new(0, 44, 0, 40),
-		Text = "✕",
-		TextSize = 22,
-		BackgroundColor3 = T.PanelAlt,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(1, -8, 0, 8),
+		Size = UDim2.new(0, 54, 0, 50),
+		Text = "✖",
+		TextSize = 26,
+		BackgroundColor3 = T.Bad,
+		cornerRadius = 14,
+		ZIndex = 10,
 		onClick = function()
 			Garage.close()
 		end,
@@ -14791,11 +14801,12 @@ local function buildWindow()
 
 	-- left: class chips + grid
 	chips = Kit.new("ScrollingFrame", {
-		Position = UDim2.new(0, 16, 0, 64),
-		Size = UDim2.new(0, 540, 0, 40),
+		Position = UDim2.new(0, 16, 0, 72),
+		Size = UDim2.new(0, 540, 0, 48),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		ScrollBarThickness = 3,
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = T.Accent,
 		ScrollingDirection = Enum.ScrollingDirection.X,
 		AutomaticCanvasSize = Enum.AutomaticSize.X,
 		CanvasSize = UDim2.new(),
@@ -14803,8 +14814,8 @@ local function buildWindow()
 	})
 	Kit.list(chips, Enum.FillDirection.Horizontal, 6)
 	grid = Kit.new("ScrollingFrame", {
-		Position = UDim2.new(0, 16, 0, 112),
-		Size = UDim2.new(0, 540, 1, -128),
+		Position = UDim2.new(0, 16, 0, 124),
+		Size = UDim2.new(0, 540, 1, -140),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 5,
@@ -14814,30 +14825,39 @@ local function buildWindow()
 		Parent = window,
 	})
 	Kit.new("UIGridLayout", {
-		CellSize = UDim2.new(0, 260, 0, 92),
-		CellPadding = UDim2.new(0, 10, 0, 10),
+		CellSize = UDim2.new(0, 256, 0, 96),
+		CellPadding = UDim2.new(0, 12, 0, 12),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = grid,
 	})
-	Kit.padding(grid, 2)
+	Kit.padding(grid, 5)
 
 	-- right: preview + tabs + actions
 	local right = Kit.new("Frame", {
-		Position = UDim2.new(0, 572, 0, 64),
-		Size = UDim2.new(1, -588, 1, -80),
+		Position = UDim2.new(0, 572, 0, 76),
+		Size = UDim2.new(1, -588, 1, -92),
 		BackgroundTransparency = 1,
 		Parent = window,
 	})
+	-- the car stands on a sky-blue stage
+	local stage = Kit.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 260),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		Parent = right,
+	})
+	Kit.corner(stage, 18)
+	Kit.stroke(stage, T.Ink, 3, 0)
+	Kit.gradient(stage, Color3.fromRGB(150, 215, 255), Color3.fromRGB(60, 110, 200), 90)
 	viewport = Kit.new("ViewportFrame", {
-		Size = UDim2.new(1, 0, 0, 270),
-		BackgroundColor3 = T.Panel,
-		BackgroundTransparency = 0,
+		Size = UDim2.new(1, 0, 0, 260),
+		BackgroundTransparency = 1,
 		Ambient = Color3.fromRGB(150, 150, 160),
 		LightColor = Color3.fromRGB(255, 250, 240),
 		LightDirection = Vector3.new(-0.4, -1, -0.6),
 		Parent = right,
 	})
-	Kit.corner(viewport, 12)
+	Kit.corner(viewport, 18)
 	worldModel = Kit.new("WorldModel", { Parent = viewport })
 	camera = Kit.new("Camera", { FieldOfView = 40, Parent = viewport })
 	viewport.CurrentCamera = camera
@@ -14846,36 +14866,35 @@ local function buildWindow()
 	floor.Shape = Enum.PartType.Cylinder
 	floor.Size = Vector3.new(0.4, 40, 40)
 	floor.CFrame = CFrame.new(0, -0.2, 0) * CFrame.Angles(0, 0, math.pi / 2)
-	floor.Color = Color3.fromRGB(40, 44, 58)
+	floor.Color = Color3.fromRGB(70, 92, 150)
 	floor.Material = Enum.Material.SmoothPlastic
 	floor.Anchored = true
 	floor.Parent = viewport
 
 	nameLabel = Kit.label({
-		Position = UDim2.new(0, 16, 0, 10),
-		Size = UDim2.new(1, -32, 0, 36),
+		Position = UDim2.new(0, 18, 0, 10),
+		Size = UDim2.new(1, -36, 0, 40),
 		Text = "",
-		Font = T.FontBlack,
-		TextSize = 30,
+		TextSize = 34,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextStrokeTransparency = 0.6,
+		outline = 3,
 		ZIndex = 3,
 		Parent = viewport,
 	})
 	classLabel = Kit.label({
-		Position = UDim2.new(0, 18, 0, 44),
-		Size = UDim2.new(1, -32, 0, 20),
+		Position = UDim2.new(0, 20, 0, 50),
+		Size = UDim2.new(1, -36, 0, 22),
 		Text = "",
-		TextSize = 16,
+		TextSize = 18,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextStrokeTransparency = 0.6,
+		outline = 2,
 		ZIndex = 3,
 		Parent = viewport,
 	})
 
 	local tabs = Kit.new("Frame", {
-		Position = UDim2.new(0, 0, 0, 280),
-		Size = UDim2.new(1, 0, 0, 38),
+		Position = UDim2.new(0, 0, 0, 272),
+		Size = UDim2.new(1, 0, 0, 42),
 		BackgroundTransparency = 1,
 		Parent = right,
 	})
@@ -14883,9 +14902,9 @@ local function buildWindow()
 	for i, name in { "Info", "Paint", "Tuning" } do
 		local key = if name == "Info" then "TabCars" elseif name == "Paint" then "TabPaint" else "TabTuning"
 		tabButtons[name] = Kit.button({
-			Size = UDim2.new(0, 150, 1, 0),
+			Size = UDim2.new(0, 160, 1, 0),
 			Text = Strings.get(key),
-			TextSize = 16,
+			TextSize = 18,
 			LayoutOrder = i,
 			BackgroundColor3 = T.Card,
 			onClick = function()
@@ -14897,7 +14916,7 @@ local function buildWindow()
 	end
 	tabContent = Kit.new("Frame", {
 		Position = UDim2.new(0, 0, 0, 326),
-		Size = UDim2.new(1, 0, 1, -396),
+		Size = UDim2.new(1, 0, 1, -400),
 		BackgroundTransparency = 1,
 		Parent = right,
 	})
@@ -14906,9 +14925,10 @@ local function buildWindow()
 	primaryButton = Kit.button({
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 0, 1, 0),
-		Size = UDim2.new(0.62, -6, 0, 58),
+		Size = UDim2.new(0.62, -6, 0, 60),
 		Text = "",
-		TextSize = 22,
+		TextSize = 26,
+		cornerRadius = 16,
 		onClick = function()
 			local def = CarCatalog.get(selectedId)
 			if not def then
@@ -14928,10 +14948,11 @@ local function buildWindow()
 	secondaryButton = Kit.button({
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, 0, 1, 0),
-		Size = UDim2.new(0.38, -6, 0, 58),
+		Size = UDim2.new(0.38, -6, 0, 60),
 		Text = Strings.get("Despawn"),
-		TextSize = 18,
-		BackgroundColor3 = T.PanelAlt,
+		TextSize = 20,
+		cornerRadius = 16,
+		BackgroundColor3 = T.Bad,
 		onClick = function()
 			request("DespawnCar")
 			task.wait(0.2)
@@ -15039,6 +15060,7 @@ local Strings = require(Shared.Strings)
 
 local ClientState = require(script.Parent.Parent.ClientState)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Rail = require(script.Parent.Parent.UI.Rail)
 local T = Kit.Theme
 
 local Hud = {}
@@ -15048,8 +15070,7 @@ local gui: ScreenGui
 local cashLabel: TextLabel
 local displayedCash = 0
 local targetCash = 0
-local dailyButton: TextButton
-local dailyDot: Frame
+local daily: Kit.BigButton
 local speedo: Frame
 local speedLabel: TextLabel
 local gearLabel: TextLabel
@@ -15062,90 +15083,72 @@ local hint: TextLabel
 local RPM_CELLS = 20
 
 local function buildTopLeft()
+	-- cash: a deep-blue pill with a drawn coin hanging over its left edge
 	local cash = Kit.panel({
 		Name = "Cash",
-		Position = UDim2.new(0, 20, 0, 18),
-		Size = UDim2.new(0, 230, 0, 54),
+		Position = UDim2.new(0, 34, 0, 18),
+		Size = UDim2.new(0, 236, 0, 52),
 		Parent = gui,
 	})
-	Kit.gradient(cash, Color3.fromRGB(255, 255, 255), Color3.fromRGB(200, 205, 220), 90)
-	local icon = Kit.new("Frame", {
-		Size = UDim2.new(0, 38, 0, 38),
-		Position = UDim2.new(0, 8, 0.5, -19),
-		BackgroundColor3 = T.Good,
-		BorderSizePixel = 0,
-		Parent = cash,
-	})
-	Kit.corner(icon, 19)
-	Kit.label({ Size = UDim2.fromScale(1, 1), Text = "$", Font = T.FontBlack, TextSize = 26, Parent = icon })
+	Kit.corner(cash, 26)
+	Kit.coin(cash, 62, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 2, 0.5, 0) })
 	cashLabel = Kit.label({
-		Size = UDim2.new(1, -60, 1, 0),
-		Position = UDim2.new(0, 54, 0, 0),
+		Position = UDim2.new(0, 40, 0, 0),
+		Size = UDim2.new(1, -50, 1, 0),
 		Text = "$0",
 		Font = T.FontBlack,
-		TextSize = 28,
+		TextSize = 32,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 2.5,
 		Parent = cash,
 	})
 end
 
 local function buildTopRight()
-	local holder = Kit.new("Frame", {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -20, 0, 18),
-		Size = UDim2.new(0, 520, 0, 54),
-		BackgroundTransparency = 1,
-		Parent = gui,
-	})
-	local layout = Kit.list(holder, Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Right)
-	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-
-	local garage = Kit.button({
-		Name = "GarageButton",
-		Size = UDim2.new(0, 170, 0, 50),
-		Text = Strings.get("Garage") .. "  [G]",
-		LayoutOrder = 3,
+	-- garage and daily live in the shared rail of big tiles
+	Rail.add({
+		name = "Garage",
+		icon = "🚗",
+		caption = Strings.get("Garage"),
+		color = Color3.fromRGB(240, 70, 120),
+		layoutOrder = 5,
 		onClick = function()
 			Hud.GarageRequested:Fire()
 		end,
-		Parent = holder,
 	})
-	Kit.stroke(garage, Color3.new(1, 1, 1), 2, 0.7)
-
-	dailyButton = Kit.button({
-		Name = "DailyButton",
-		Size = UDim2.new(0, 150, 0, 50),
-		Text = Strings.get("Daily"),
-		BackgroundColor3 = T.PanelAlt,
-		LayoutOrder = 2,
+	daily = Rail.add({
+		name = "Daily",
+		icon = "🎁",
+		caption = Strings.get("Daily"),
+		color = Color3.fromRGB(255, 176, 30),
+		layoutOrder = 6,
 		onClick = function()
 			local r = Net.request("ClaimDaily")
 			if r.message then
 				require(script.Parent.Notifications).notifyKey(r.message, r.args, if r.ok then "success" else "info")
 			end
 		end,
-		Parent = holder,
 	})
-	dailyDot = Kit.new("Frame", {
-		Size = UDim2.new(0, 14, 0, 14),
-		Position = UDim2.new(1, -10, 0, -4),
-		BackgroundColor3 = T.Bad,
-		BorderSizePixel = 0,
-		Visible = false,
-		Parent = dailyButton,
-	})
-	Kit.corner(dailyDot, 7)
 
+	local holder = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -20, 0, 18),
+		Size = UDim2.new(0, 300, 0, 50),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	})
+	local layout = Kit.list(holder, Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Right)
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 	local function addDevButton()
 		if holder:FindFirstChild("DevCash") or not Players.LocalPlayer:GetAttribute("IsDev") then
 			return
 		end
 		local dev = Kit.button({
 			Name = "DevCash",
-			Size = UDim2.new(0, 120, 0, 40),
+			Size = UDim2.new(0, 130, 0, 42),
 			Text = Strings.get("DevCash"),
-			TextSize = 15,
-			BackgroundColor3 = Color3.fromRGB(110, 60, 200),
+			TextSize = 18,
+			BackgroundColor3 = T.Purple,
 			LayoutOrder = 1,
 			onClick = function()
 				Net.request("DevCash")
@@ -15163,47 +15166,51 @@ local function buildSpeedo()
 		Name = "Speedometer",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -22),
-		Size = UDim2.new(0, 380, 0, 128),
+		Size = UDim2.new(0, 400, 0, 136),
 		Visible = false,
 		Parent = gui,
 	})
+	Kit.corner(speedo, 24)
 	speedLabel = Kit.label({
-		Position = UDim2.new(0, 18, 0, 6),
+		Position = UDim2.new(0, 22, 0, 2),
 		Size = UDim2.new(0, 170, 0, 70),
 		Text = "0",
 		Font = T.FontBlack,
-		TextSize = 64,
+		TextSize = 66,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 3,
 		Parent = speedo,
 	})
 	Kit.label({
-		Position = UDim2.new(0, 20, 0, 70),
-		Size = UDim2.new(0, 120, 0, 20),
+		Position = UDim2.new(0, 24, 0, 66),
+		Size = UDim2.new(0, 120, 0, 18),
 		Text = Strings.get("SpeedUnit"),
 		TextColor3 = T.Muted,
-		TextSize = 16,
+		TextSize = 18,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 1.5,
 		Parent = speedo,
 	})
 	local gearBox = Kit.new("Frame", {
-		Position = UDim2.new(0, 186, 0, 14),
-		Size = UDim2.new(0, 56, 0, 56),
-		BackgroundColor3 = T.PanelAlt,
+		Position = UDim2.new(0, 186, 0, 16),
+		Size = UDim2.new(0, 58, 0, 58),
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		Parent = speedo,
 	})
-	Kit.corner(gearBox, 10)
-	Kit.stroke(gearBox, T.Accent, 2, 0.3)
-	gearLabel = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "1", Font = T.FontBlack, TextSize = 34, Parent = gearBox })
+	Kit.corner(gearBox, 16)
+	Kit.stroke(gearBox, T.Ink, 3, 0)
+	Kit.gradient(gearBox, Color3.fromRGB(255, 190, 80), T.Accent, 90)
+	gearLabel = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "1", Font = T.FontBlack, TextSize = 38, outline = 2.5, Parent = gearBox })
 
 	-- RPM cells
 	local rpm = Kit.new("Frame", {
-		Position = UDim2.new(0, 256, 0, 14),
-		Size = UDim2.new(0, 108, 0, 56),
+		Position = UDim2.new(0, 258, 0, 16),
+		Size = UDim2.new(0, 124, 0, 58),
 		BackgroundTransparency = 1,
 		Parent = speedo,
 	})
-	Kit.list(rpm, Enum.FillDirection.Horizontal, 1, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Bottom)
+	Kit.list(rpm, Enum.FillDirection.Horizontal, 2, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Bottom)
 	for i = 1, RPM_CELLS do
 		local cell = Kit.new("Frame", {
 			Size = UDim2.new(0, 4.3, 0, 16 + i * 2),
@@ -15213,47 +15220,49 @@ local function buildSpeedo()
 			LayoutOrder = i,
 			Parent = rpm,
 		})
+		Kit.corner(cell, 2)
 		table.insert(rpmCells, cell)
 	end
 
 	-- nitro bar
 	local nitroBack = Kit.new("Frame", {
-		Position = UDim2.new(0, 18, 1, -28),
-		Size = UDim2.new(1, -36, 0, 14),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.88,
+		Position = UDim2.new(0, 22, 1, -28),
+		Size = UDim2.new(1, -44, 0, 16),
+		BackgroundColor3 = Color3.fromRGB(16, 24, 50),
 		BorderSizePixel = 0,
 		Parent = speedo,
 	})
-	Kit.corner(nitroBack, 7)
+	Kit.corner(nitroBack, 8)
+	Kit.stroke(nitroBack, T.Ink, 2.5, 0)
 	nitroFill = Kit.new("Frame", {
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = T.Accent2,
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		Parent = nitroBack,
 	})
-	Kit.corner(nitroFill, 7)
-	Kit.gradient(nitroFill, Color3.fromRGB(70, 196, 255), Color3.fromRGB(170, 90, 255), 0)
+	Kit.corner(nitroFill, 8)
+	Kit.gradient(nitroFill, Color3.fromRGB(70, 210, 255), Color3.fromRGB(170, 90, 255), 0)
 	nitroLabel = Kit.label({
-		Position = UDim2.new(0, 0, 0, -18),
-		Size = UDim2.new(1, 0, 0, 16),
-		Text = Strings.get("Nitro"),
+		Position = UDim2.new(0, 2, 0, -20),
+		Size = UDim2.new(1, 0, 0, 18),
+		Text = "🔥 " .. Strings.get("Nitro"),
 		TextColor3 = T.Muted,
-		TextSize = 13,
+		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 1.5,
 		Parent = nitroBack,
 	})
 
 	meter = Kit.label({
 		Name = "Meter",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -160),
-		Size = UDim2.new(0, 400, 0, 44),
+		Position = UDim2.new(0.5, 0, 1, -170),
+		Size = UDim2.new(0, 460, 0, 56),
 		Text = "",
 		Font = T.FontBlack,
-		TextSize = 34,
+		TextSize = 44,
 		TextColor3 = T.Gold,
-		TextStrokeTransparency = 0.4,
+		outline = 3,
 		Visible = false,
 		Parent = gui,
 	})
@@ -15272,26 +15281,28 @@ local function buildHint()
 		Size = UDim2.new(0, 520, 0, 50),
 		Text = text,
 		TextWrapped = true,
-		TextSize = 14,
-		TextColor3 = T.Muted,
+		TextSize = 15,
+		Font = T.FontMedium,
+		TextColor3 = T.Text,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Bottom,
-		TextStrokeTransparency = 0.6,
+		outline = 1.5,
 		Visible = false,
 		Parent = gui,
 	})
 end
 
 local function updateDaily(profile)
-	if not profile or not dailyButton then
+	if not profile or not daily then
 		return
 	end
 	local today = math.floor((profile.serverTime or os.time()) / 86400)
 	local last = math.floor((profile.daily and profile.daily.last or 0) / 86400)
 	local ready = profile.daily == nil or profile.daily.last == 0 or today > last
-	dailyDot.Visible = ready
-	dailyButton.Text = if ready then Strings.get("DailyReady") else Strings.get("Daily")
-	Kit.setButtonColor(dailyButton, if ready then T.Good else T.PanelAlt)
+	daily.setBadge(if ready then 1 else nil)
+	daily.setPulse(ready)
+	daily.caption.Text = if ready then Strings.get("DailyReady") else Strings.get("Daily")
+	daily.setColor(if ready then Color3.fromRGB(255, 176, 30) else T.Disabled)
 end
 
 function Hud.init()
@@ -15348,7 +15359,7 @@ function Hud.start()
 		if cells ~= lit then
 			lit = cells
 			for i, cell in rpmCells do
-				cell.BackgroundTransparency = if i <= cells then 0 else 0.82
+				cell.BackgroundTransparency = if i <= cells then 0 else 0.8
 			end
 		end
 		nitroFill.Size = UDim2.fromScale(math.clamp(tel.nitro, 0, 1), 1)
@@ -15396,63 +15407,90 @@ local spinner: Frame
 
 function Loading.init()
 	gui = Kit.screen("CarsLoading", 100)
-	local back = Kit.new("Frame", {
+	-- one CanvasGroup so the whole splash fades out together
+	local back = Kit.new("CanvasGroup", {
+		Name = "Splash",
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = T.Bg,
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		Parent = gui,
 	})
-	Kit.gradient(back, Color3.fromRGB(40, 46, 70), Color3.fromRGB(10, 12, 20), 90)
-	Kit.label({
+	Kit.gradient(back, Color3.fromRGB(70, 110, 230), Color3.fromRGB(20, 26, 70), 90)
+	-- logo: chunky orange letters with a thick outline on a tilted ribbon
+	local ribbon = Kit.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.42),
-		Size = UDim2.new(0, 600, 0, 120),
-		Text = "CARS",
-		Font = T.FontBlack,
-		TextSize = 120,
-		TextColor3 = T.Accent,
-		Parent = back,
-	})
-	Kit.label({
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.55),
-		Size = UDim2.new(0, 700, 0, 30),
-		Text = Strings.get("Loading"),
-		TextSize = 22,
-		TextColor3 = T.Muted,
-		Parent = back,
-	})
-	spinner = Kit.new("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.64),
-		Size = UDim2.new(0, 46, 0, 46),
-		Rotation = 0,
-		BackgroundColor3 = T.Accent,
+		Position = UDim2.fromScale(0.5, 0.4),
+		Size = UDim2.new(0, 620, 0, 170),
+		Rotation = -3,
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		Parent = back,
 	})
-	Kit.corner(spinner, 10)
+	Kit.corner(ribbon, 34)
+	Kit.stroke(ribbon, T.Ink, 6, 0)
+	Kit.gradient(ribbon, Color3.fromRGB(255, 200, 80), T.Accent, 90)
+	Kit.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "CARS",
+		Font = Enum.Font.FredokaOne,
+		TextSize = 140,
+		outline = 6,
+		Parent = ribbon,
+	})
+	Kit.label({
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.58),
+		Size = UDim2.new(0, 700, 0, 40),
+		Text = "🚗  🔧  🏁",
+		TextSize = 34,
+		Parent = back,
+	})
+	Kit.label({
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.65),
+		Size = UDim2.new(0, 800, 0, 34),
+		Text = Strings.get("Loading"),
+		TextSize = 26,
+		outline = 2.5,
+		Parent = back,
+	})
+	local barBack = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.72),
+		Size = UDim2.new(0, 460, 0, 28),
+		BackgroundColor3 = Color3.fromRGB(14, 20, 50),
+		BorderSizePixel = 0,
+		Parent = back,
+	})
+	Kit.corner(barBack, 14)
+	Kit.stroke(barBack, T.Ink, 4, 0)
+	spinner = Kit.new("Frame", {
+		Name = "Fill",
+		Size = UDim2.fromScale(0.05, 1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		Parent = barBack,
+	})
+	Kit.corner(spinner, 14)
+	Kit.gradient(spinner, Color3.fromRGB(140, 255, 150), T.Good, 90)
 end
 
 function Loading.start()
 	local player = Players.LocalPlayer
 	local started = os.clock()
+	local progress = 0.05
 	local conn
 	conn = RunService.RenderStepped:Connect(function(dt)
-		spinner.Rotation += dt * 220
+		-- creeps towards 90% while we wait, jumps to 100% when ready
+		progress += (0.9 - progress) * math.min(1, dt * 0.8)
+		spinner.Size = UDim2.fromScale(progress, 1)
 		local ready = player.Character ~= nil and ClientState.profile ~= nil
 		if ready or os.clock() - started > 45 then
 			conn:Disconnect()
-			local back = gui:FindFirstChildOfClass("Frame")
+			spinner.Size = UDim2.fromScale(1, 1)
+			local back = gui:FindFirstChild("Splash") :: CanvasGroup?
 			if back then
-				Kit.tween(back, 0.5, { BackgroundTransparency = 1 })
-				for _, d in back:GetDescendants() do
-					if d:IsA("TextLabel") then
-						Kit.tween(d, 0.4, { TextTransparency = 1 })
-					elseif d:IsA("Frame") then
-						Kit.tween(d, 0.4, { BackgroundTransparency = 1 })
-					end
-				end
+				Kit.tween(back, 0.5, { GroupTransparency = 1 })
 			end
 			task.delay(0.6, function()
 				gui:Destroy()
@@ -15646,7 +15684,7 @@ function Minimap.init()
 		Parent = map,
 	})
 	Kit.corner(homeMarker, 13)
-	Kit.stroke(homeMarker, Color3.new(1, 1, 1), 2, 0.1)
+	Kit.stroke(homeMarker, T.Ink, 2.5, 0)
 	-- the player's arrow stays in the middle
 	arrow = Kit.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -15660,9 +15698,9 @@ function Minimap.init()
 	Kit.label({
 		Size = UDim2.fromScale(1, 1),
 		Text = "▲",
-		TextSize = 18,
+		TextSize = 22,
 		TextColor3 = T.Accent,
-		TextStrokeTransparency = 0.2,
+		outline = 2.5,
 		ZIndex = 10,
 		Parent = arrow,
 	})
@@ -15674,18 +15712,31 @@ function Minimap.init()
 		Parent = root,
 	})
 	Kit.corner(ring, SIZE / 2)
-	Kit.stroke(ring, Color3.new(1, 1, 1), 3, 0.6)
-	Kit.label({
+	Kit.stroke(ring, Color3.new(1, 1, 1), 3, 0.35)
+	local north = Kit.label({
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 4),
-		Size = UDim2.fromOffset(20, 16),
+		Size = UDim2.fromOffset(22, 22),
 		Text = "N",
-		TextSize = 13,
-		TextColor3 = T.Muted,
+		TextSize = 14,
+		BackgroundColor3 = T.Bad,
+		BackgroundTransparency = 0,
+		outline = 1.5,
 		ZIndex = 12,
 		Name = "North",
 		Parent = root,
 	})
+	Kit.corner(north, 11)
+	-- thick outline around the whole map (outside the clipping group)
+	local frame = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = root.Position,
+		Size = root.Size,
+		BackgroundTransparency = 1,
+		Parent = root.Parent,
+	})
+	Kit.corner(frame, SIZE / 2)
+	Kit.stroke(frame, T.Ink, 4, 0)
 end
 
 function Minimap.start()
@@ -15781,6 +15832,12 @@ local KIND_COLORS = {
 	warning = T.Warn,
 	error = T.Bad,
 }
+local KIND_ICONS = {
+	info = "💬",
+	success = "✅",
+	warning = "⚠️",
+	error = "⛔",
+}
 
 -- Translates arguments that are themselves string keys.
 local function localizeArgs(args: { any }?): { any }
@@ -15796,35 +15853,30 @@ local function localizeArgs(args: { any }?): { any }
 end
 
 function Notifications.show(text: string, kind: string?)
-	local color = KIND_COLORS[kind or "info"] or T.Accent2
+	local k = kind or "info"
+	local color = KIND_COLORS[k] or T.Accent2
 	local toast = Kit.panel({
-		Size = UDim2.new(0, 460, 0, 0),
+		Size = UDim2.new(0, 500, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundTransparency = 0.05,
 		Parent = toastHolder,
 	})
-	Kit.padding(toast, 14, 10)
-	local strip = Kit.new("Frame", {
-		Size = UDim2.new(0, 4, 1, 0),
-		Position = UDim2.new(0, -10, 0, 0),
-		BackgroundColor3 = color,
-		BorderSizePixel = 0,
-		Parent = toast,
-	})
-	Kit.corner(strip, 2)
-	local label = Kit.label({
-		Size = UDim2.new(1, 0, 0, 0),
+	Kit.corner(toast, 20)
+	Kit.padding(toast, 12, 10)
+	Kit.new("UISizeConstraint", { MinSize = Vector2.new(500, 64), Parent = toast })
+	Kit.iconTile(toast, KIND_ICONS[k] or "💬", color, 46, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0) })
+	Kit.label({
+		Position = UDim2.fromOffset(58, 0),
+		Size = UDim2.new(1, -58, 0, 44),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		Text = text,
 		TextWrapped = true,
-		TextSize = 19,
+		TextSize = 21,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 2,
 		Parent = toast,
 	})
-	label.TextTransparency = 1
-	toast.BackgroundTransparency = 1
-	Kit.tween(label, 0.2, { TextTransparency = 0 })
-	Kit.tween(toast, 0.2, { BackgroundTransparency = 0.05 })
+	local scale = Kit.new("UIScale", { Scale = 0.6, Parent = toast })
+	Kit.tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
 	-- keep at most 4 toasts
 	local children = {}
 	for _, c in toastHolder:GetChildren() do
@@ -15837,14 +15889,8 @@ function Notifications.show(text: string, kind: string?)
 	end
 	task.delay(3.6, function()
 		if toast.Parent then
-			Kit.tween(label, 0.3, { TextTransparency = 1 })
-			Kit.tween(toast, 0.3, { BackgroundTransparency = 1 })
-			local s = toast:FindFirstChildOfClass("UIStroke")
-			if s then
-				Kit.tween(s, 0.3, { Transparency = 1 })
-			end
-			strip:Destroy()
-			task.wait(0.32)
+			Kit.tween(scale, 0.2, { Scale = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+			task.wait(0.22)
 			toast:Destroy()
 		end
 	end)
@@ -15873,23 +15919,29 @@ function Notifications.reward(kind: string, amount: number, detail: any)
 		title = Strings.get(REWARD_KEYS[kind] or "Cash")
 	end
 	local big = kind ~= "distance"
-	local label = Kit.label({
-		Size = UDim2.new(1, 0, 0, if big then 30 else 22),
-		Text = string.format("+%s  %s", Format.money(amount), title),
-		TextColor3 = if big then T.Gold else T.Good,
-		Font = T.FontBlack,
-		TextSize = if big then 24 else 18,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextStrokeTransparency = 0.5,
+	local row = Kit.new("Frame", {
+		Size = UDim2.new(1, 0, 0, if big then 40 else 30),
+		BackgroundTransparency = 1,
 		Parent = rewardHolder,
 	})
-	label.TextTransparency = 1
-	label.TextStrokeTransparency = 1
-	Kit.tween(label, 0.15, { TextTransparency = 0, TextStrokeTransparency = 0.5 })
+	Kit.coin(row, if big then 34 else 24, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0) })
+	Kit.label({
+		Position = UDim2.fromOffset(if big then 42 else 32, 0),
+		Size = UDim2.new(1, -42, 1, 0),
+		Text = string.format("+%s  %s", Format.money(amount), title),
+		TextColor3 = if big then T.Gold else Color3.fromRGB(150, 255, 150),
+		TextSize = if big then 30 else 22,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.None,
+		outline = 2.5,
+		Parent = row,
+	})
+	local scale = Kit.new("UIScale", { Scale = 0.4, Parent = row })
+	Kit.tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
 	task.delay(if big then 2.6 else 1.6, function()
-		Kit.tween(label, 0.4, { TextTransparency = 1, TextStrokeTransparency = 1 })
-		task.wait(0.45)
-		label:Destroy()
+		Kit.tween(scale, 0.25, { Scale = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+		task.wait(0.27)
+		row:Destroy()
 	end)
 end
 
@@ -15898,20 +15950,20 @@ function Notifications.init()
 	toastHolder = Kit.new("Frame", {
 		Name = "Toasts",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 200), -- below the race panel
-		Size = UDim2.new(0, 460, 0, 300),
+		Position = UDim2.new(0.5, 0, 0, 104), -- below the hint card
+		Size = UDim2.new(0, 500, 0, 320),
 		BackgroundTransparency = 1,
 		Parent = gui,
 	})
 	Kit.list(toastHolder, Enum.FillDirection.Vertical, 8, Enum.HorizontalAlignment.Center)
 	rewardHolder = Kit.new("Frame", {
 		Name = "Rewards",
-		Position = UDim2.new(0, 120, 0, 132),
-		Size = UDim2.new(0, 360, 0, 200),
+		Position = UDim2.new(0, 216, 0, 300), -- right of the rail, under the toasts
+		Size = UDim2.new(0, 460, 0, 260),
 		BackgroundTransparency = 1,
 		Parent = gui,
 	})
-	Kit.list(rewardHolder, Enum.FillDirection.Vertical, 2)
+	Kit.list(rewardHolder, Enum.FillDirection.Vertical, 4)
 end
 
 function Notifications.start()
@@ -16108,38 +16160,41 @@ end
 
 local function showResults(payload)
 	for _, c in results:GetChildren() do
-		if not c:IsA("UICorner") and not c:IsA("UIStroke") and not c:IsA("UIPadding") and not c:IsA("UIListLayout") then
+		if c:IsA("GuiObject") then
 			c:Destroy()
 		end
 	end
 	local medal = payload.medal
-	Kit.label({ Size = UDim2.new(1, 0, 0, 30), Text = trackName(payload.trackId), TextSize = 22, TextColor3 = T.Muted, LayoutOrder = 1, Parent = results })
-	Kit.label({ Size = UDim2.new(1, 0, 0, 64), Text = Format.time(payload.time), Font = T.FontBlack, TextSize = 60, LayoutOrder = 2, Parent = results })
+	Kit.label({ Size = UDim2.new(1, 0, 0, 30), Text = "🏁 " .. trackName(payload.trackId), TextSize = 24, TextColor3 = T.Muted, outline = 2, LayoutOrder = 1, Parent = results })
+	Kit.label({ Size = UDim2.new(1, 0, 0, 68), Text = Format.time(payload.time), Font = T.FontBlack, TextSize = 64, outline = 3.5, LayoutOrder = 2, Parent = results })
 	Kit.label({
 		Size = UDim2.new(1, 0, 0, 34),
 		Text = if medal then "★ " .. Strings.get("Medal" .. medal) .. " ★" else Strings.get("MedalNone"),
 		Font = T.FontBlack,
-		TextSize = 30,
+		TextSize = 34,
 		TextColor3 = if medal then MEDAL_COLORS[medal] else T.Muted,
+		outline = 3,
 		LayoutOrder = 3,
 		Parent = results,
 	})
 	if payload.newRecord then
-		Kit.label({ Size = UDim2.new(1, 0, 0, 26), Text = Strings.get("RaceNewRecord"), TextSize = 20, TextColor3 = T.Good, LayoutOrder = 4, Parent = results })
+		Kit.pill(results, "🏆 " .. Strings.get("RaceNewRecord"), T.Good, 4).TextSize = 20
 	end
 	Kit.label({
-		Size = UDim2.new(1, 0, 0, 26),
-		Text = Strings.get("RaceReward", Format.money(payload.reward or 0)),
-		TextSize = 20,
+		Size = UDim2.new(1, 0, 0, 32),
+		Text = "💰 " .. Strings.get("RaceReward", Format.money(payload.reward or 0)),
+		TextSize = 26,
 		TextColor3 = T.Gold,
+		outline = 2.5,
 		LayoutOrder = 5,
 		Parent = results,
 	})
 	local row = Kit.new("Frame", { Size = UDim2.new(1, 0, 0, 52), BackgroundTransparency = 1, LayoutOrder = 6, Parent = results })
 	Kit.list(row, Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Center)
 	Kit.button({
-		Size = UDim2.new(0, 190, 1, 0),
-		Text = Strings.get("RaceStart"),
+		Size = UDim2.new(0, 190, 1, -6),
+		Text = "▶ " .. Strings.get("RaceStart"),
+		TextSize = 22,
 		BackgroundColor3 = T.Good,
 		onClick = function()
 			results.Visible = false
@@ -16154,9 +16209,10 @@ local function showResults(payload)
 		Parent = row,
 	})
 	Kit.button({
-		Size = UDim2.new(0, 150, 1, 0),
+		Size = UDim2.new(0, 150, 1, -6),
 		Text = Strings.get("Close"),
-		BackgroundColor3 = T.PanelAlt,
+		TextSize = 22,
+		BackgroundColor3 = T.Bad,
 		onClick = function()
 			results.Visible = false
 		end,
@@ -16226,17 +16282,18 @@ local function build()
 		Visible = false,
 		Parent = gui,
 	})
-	trackLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 8), Size = UDim2.new(1, 0, 0, 22), Text = "", TextSize = 18, TextColor3 = T.Accent, Parent = panel })
-	timerLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 30), Size = UDim2.new(1, 0, 0, 52), Text = "0:00.00", Font = T.FontBlack, TextSize = 48, Parent = panel })
-	progressLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 82), Size = UDim2.new(1, 0, 0, 20), Text = "", TextSize = 16, Parent = panel })
-	bestLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 102), Size = UDim2.new(1, 0, 0, 18), Text = "", TextSize = 14, TextColor3 = T.Muted, Parent = panel })
-	medalsLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 120), Size = UDim2.new(1, 0, 0, 18), Text = "", TextSize = 12, TextColor3 = T.Muted, Parent = panel })
+	Kit.corner(panel, 22)
+	trackLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 8), Size = UDim2.new(1, 0, 0, 24), Text = "", TextSize = 20, TextColor3 = T.Accent, outline = 2, Parent = panel })
+	timerLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 30), Size = UDim2.new(1, 0, 0, 54), Text = "0:00.00", Font = T.FontBlack, TextSize = 52, outline = 3, Parent = panel })
+	progressLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 84), Size = UDim2.new(1, 0, 0, 22), Text = "", TextSize = 18, outline = 2, Parent = panel })
+	bestLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 106), Size = UDim2.new(1, 0, 0, 18), Text = "", TextSize = 15, Font = T.FontMedium, TextColor3 = T.Muted, Parent = panel })
+	medalsLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 124), Size = UDim2.new(1, 0, 0, 18), Text = "", TextSize = 13, Font = T.FontMedium, TextColor3 = T.Muted, Parent = panel })
 	Kit.button({
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 1, 8),
-		Size = UDim2.new(0, 170, 0, 34),
-		Text = Strings.get("RaceLeave"),
-		TextSize = 14,
+		Position = UDim2.new(0.5, 0, 1, 10),
+		Size = UDim2.new(0, 200, 0, 40),
+		Text = "🏳 " .. Strings.get("RaceLeave"),
+		TextSize = 17,
 		BackgroundColor3 = T.Bad,
 		onClick = function()
 			Net.request("LeaveRace")
@@ -16249,9 +16306,9 @@ local function build()
 		Size = UDim2.new(0, 400, 0, 160),
 		Text = "",
 		Font = T.FontBlack,
-		TextSize = 140,
+		TextSize = 150,
 		TextColor3 = T.Gold,
-		TextStrokeTransparency = 0.3,
+		outline = 6,
 		Visible = false,
 		Parent = gui,
 	})
@@ -16264,6 +16321,7 @@ local function build()
 		Visible = false,
 		Parent = gui,
 	})
+	Kit.corner(results, 24)
 	Kit.padding(results, 20, 18)
 	Kit.list(results, Enum.FillDirection.Vertical, 8, Enum.HorizontalAlignment.Center)
 end
@@ -16353,6 +16411,7 @@ local Strings = require(Shared.Strings)
 
 local ClientState = require(script.Parent.Parent.ClientState)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Rail = require(script.Parent.Parent.UI.Rail)
 local Notifications = require(script.Parent.Notifications)
 local Workshop = require(script.Parent.Workshop)
 local T = Kit.Theme
@@ -16360,7 +16419,6 @@ local T = Kit.Theme
 local Service = {}
 
 local gui: ScreenGui
-local rail: Frame
 local buttons: { [string]: Kit.BigButton } = {}
 local levelBadge: TextLabel
 local xpFill: Frame
@@ -16533,54 +16591,58 @@ end
 
 local function orderCard(job: any, order: number)
 	local tier = ServiceConfig.getTier(job.tier)
-	local cardFrame = Kit.new("Frame", {
+	local yours = job.assignee == "player"
+	local cardFrame = Kit.card({
 		Name = "Order" .. job.id,
-		Size = UDim2.fromOffset(392, 214),
-		BackgroundColor3 = T.Card,
-		BorderSizePixel = 0,
+		Size = UDim2.fromOffset(400, 222),
 		LayoutOrder = order,
 		Parent = ordersList,
 	})
-	Kit.corner(cardFrame, 16)
-	local yours = job.assignee == "player"
-	Kit.stroke(cardFrame, if yours then T.Good else Color3.new(1, 1, 1), if yours then 3 else 1, if yours then 0.1 else 0.85)
-	-- preview on a soft spotlight
+	if yours then
+		local s = cardFrame:FindFirstChildOfClass("UIStroke")
+		if s then
+			s.Color = T.Good
+			s.Thickness = 4
+		end
+	end
+	-- vehicle preview on a little stage
 	local stage = Kit.new("Frame", {
-		Position = UDim2.fromOffset(10, 10),
+		Position = UDim2.fromOffset(12, 12),
 		Size = UDim2.fromOffset(150, 150),
-		BackgroundColor3 = Color3.fromRGB(46, 54, 78),
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		Parent = cardFrame,
 	})
 	Kit.corner(stage, 14)
-	Kit.gradient(stage, Color3.fromRGB(90, 104, 140), Color3.fromRGB(30, 34, 50), 90)
+	Kit.stroke(stage, T.Ink, 2.5, 0)
+	Kit.gradient(stage, Color3.fromRGB(150, 210, 255), Color3.fromRGB(70, 120, 200), 90)
 	previewFor(job, stage)
-	Kit.label({
-		Position = UDim2.fromOffset(10, 164),
-		Size = UDim2.fromOffset(150, 20),
-		Text = (if tier then tier.icon .. " " .. Strings.pick(tier.name) else ""),
-		TextSize = 13,
-		TextColor3 = T.Muted,
-		Parent = cardFrame,
-	})
+	if tier then
+		local tag = Kit.pill(cardFrame, tier.icon .. " " .. Strings.pick(tier.name), T.PanelAlt, 0)
+		tag.AnchorPoint = Vector2.new(0.5, 0.5)
+		tag.Position = UDim2.fromOffset(87, 176)
+		tag.TextSize = 13
+		tag.Size = UDim2.fromOffset(0, 24)
+	end
 	-- text side
 	Kit.label({
-		Position = UDim2.fromOffset(172, 10),
-		Size = UDim2.fromOffset(210, 28),
+		Position = UDim2.fromOffset(176, 10),
+		Size = UDim2.fromOffset(212, 30),
 		Text = Workshop.vehicleName(job),
-		TextSize = 21,
-		Font = T.FontBlack,
+		TextScaled = true,
+		maxTextSize = 23,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 2,
 		Parent = cardFrame,
 	})
 	local pills = Kit.new("Frame", {
-		Position = UDim2.fromOffset(172, 42),
-		Size = UDim2.fromOffset(212, 58),
+		Position = UDim2.fromOffset(176, 44),
+		Size = UDim2.fromOffset(214, 62),
 		BackgroundTransparency = 1,
 		Parent = cardFrame,
 	})
 	Kit.new("UIGridLayout", {
-		CellSize = UDim2.fromOffset(104, 26),
+		CellSize = UDim2.fromOffset(105, 28),
 		CellPadding = UDim2.fromOffset(4, 4),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = pills,
@@ -16594,76 +16656,69 @@ local function orderCard(job: any, order: number)
 		end
 	end
 	if job.target then
-		local swatchRow = Kit.new("Frame", {
-			Position = UDim2.fromOffset(172, 100),
-			Size = UDim2.fromOffset(212, 22),
-			BackgroundTransparency = 1,
-			Parent = cardFrame,
-		})
 		local sw = Kit.new("Frame", {
+			Position = UDim2.fromOffset(176, 104),
 			Size = UDim2.fromOffset(22, 22),
 			BackgroundColor3 = Paints.getColor(job.target),
 			BorderSizePixel = 0,
-			Parent = swatchRow,
+			Parent = cardFrame,
 		})
 		Kit.corner(sw, 11)
-		Kit.stroke(sw, Color3.new(1, 1, 1), 2, 0.3)
+		Kit.stroke(sw, T.Ink, 2.5, 0)
 		local swatch = Paints.Palette[job.target]
 		Kit.label({
-			Position = UDim2.fromOffset(28, 0),
-			Size = UDim2.fromOffset(180, 22),
+			Position = UDim2.fromOffset(204, 104),
+			Size = UDim2.fromOffset(184, 22),
 			Text = Strings.get("ServicePaintTo", if swatch then Strings.pick(swatch.name) else ""),
-			TextSize = 14,
+			TextScaled = true,
+			maxTextSize = 16,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			Parent = swatchRow,
+			outline = 1.5,
+			Parent = cardFrame,
 		})
 	end
+	-- reward with a coin, xp chip
+	Kit.coin(cardFrame, 30, { Position = UDim2.fromOffset(176, 130) })
 	Kit.label({
-		Position = UDim2.fromOffset(172, 124),
-		Size = UDim2.fromOffset(130, 34),
+		Position = UDim2.fromOffset(212, 128),
+		Size = UDim2.fromOffset(110, 34),
 		Text = Format.money(job.reward),
 		TextSize = 30,
-		Font = T.FontBlack,
 		TextColor3 = T.Gold,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 2.5,
 		Parent = cardFrame,
 	})
-	Kit.label({
-		Position = UDim2.fromOffset(300, 128),
-		Size = UDim2.fromOffset(84, 28),
-		Text = "+" .. tostring(job.xp) .. " XP",
-		TextSize = 17,
-		Font = T.FontBlack,
-		TextColor3 = T.Accent2,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		Parent = cardFrame,
-	})
+	local xp = Kit.pill(cardFrame, "+" .. tostring(job.xp) .. " XP", T.Accent2, 0)
+	xp.AnchorPoint = Vector2.new(1, 0)
+	xp.Position = UDim2.fromOffset(390, 132)
+	xp.TextSize = 15
 	-- action
 	local text, color = stateText(job)
 	if job.state == "waiting" and job.assignee == nil then
 		local patience = math.clamp(1 - (serverNow() - job.waitingSince) / ServiceConfig.Patience, 0, 1)
 		local bar = Kit.new("Frame", {
-			Position = UDim2.fromOffset(172, 160),
-			Size = UDim2.fromOffset(210, 6),
-			BackgroundColor3 = Color3.new(1, 1, 1),
-			BackgroundTransparency = 0.85,
+			Position = UDim2.fromOffset(14, 194),
+			Size = UDim2.fromOffset(146, 12),
+			BackgroundColor3 = Color3.fromRGB(16, 24, 50),
 			BorderSizePixel = 0,
 			Parent = cardFrame,
 		})
-		Kit.corner(bar, 3)
+		Kit.corner(bar, 6)
+		Kit.stroke(bar, T.Ink, 2, 0)
 		local fill = Kit.new("Frame", {
 			Size = UDim2.fromScale(patience, 1),
 			BackgroundColor3 = if patience > 0.5 then T.Good elseif patience > 0.2 then T.Warn else T.Bad,
 			BorderSizePixel = 0,
 			Parent = bar,
 		})
-		Kit.corner(fill, 3)
+		Kit.corner(fill, 6)
 		table.insert(live, { job = job, fill = fill })
-		local take = Kit.button({
-			Position = UDim2.fromOffset(172, 172),
-			Size = UDim2.fromOffset(160, 34),
+		Kit.button({
+			Position = UDim2.fromOffset(176, 172),
+			Size = UDim2.fromOffset(160, 40),
 			Text = "✋ " .. Strings.get("ServiceTake"),
-			TextSize = 18,
+			TextSize = 20,
 			BackgroundColor3 = T.Good,
 			onClick = function()
 				local r = request("ServiceTake", job.id)
@@ -16673,13 +16728,12 @@ local function orderCard(job: any, order: number)
 			end,
 			Parent = cardFrame,
 		})
-		Kit.stroke(take, Color3.new(1, 1, 1), 2, 0.6)
 		Kit.button({
-			Position = UDim2.fromOffset(338, 172),
-			Size = UDim2.fromOffset(44, 34),
-			Text = "✕",
+			Position = UDim2.fromOffset(344, 172),
+			Size = UDim2.fromOffset(44, 40),
+			Text = "✖",
 			TextSize = 18,
-			BackgroundColor3 = Color3.fromRGB(70, 76, 96),
+			BackgroundColor3 = T.Bad,
 			onClick = function()
 				Net.request("ServiceDismiss", job.id)
 			end,
@@ -16687,21 +16741,10 @@ local function orderCard(job: any, order: number)
 		})
 	elseif job.assignee == "player" and job.state == "inBay" then
 		Kit.button({
-			Position = UDim2.fromOffset(338, 168),
-			Size = UDim2.fromOffset(44, 38),
-			Text = "✕",
-			TextSize = 18,
-			BackgroundColor3 = Color3.fromRGB(70, 76, 96),
-			onClick = function()
-				Net.request("ServiceCancel", job.id)
-			end,
-			Parent = cardFrame,
-		})
-		local work = Kit.button({
-			Position = UDim2.fromOffset(172, 168),
-			Size = UDim2.fromOffset(160, 38),
+			Position = UDim2.fromOffset(176, 172),
+			Size = UDim2.fromOffset(160, 40),
 			Text = "🧽 " .. Strings.get("ServiceWork"),
-			TextSize = 20,
+			TextSize = 21,
 			BackgroundColor3 = T.Accent,
 			onClick = function()
 				setOrdersOpen(false)
@@ -16709,16 +16752,26 @@ local function orderCard(job: any, order: number)
 			end,
 			Parent = cardFrame,
 		})
-		Kit.stroke(work, Color3.new(1, 1, 1), 2, 0.5)
+		Kit.button({
+			Position = UDim2.fromOffset(344, 172),
+			Size = UDim2.fromOffset(44, 40),
+			Text = "✖",
+			TextSize = 18,
+			BackgroundColor3 = T.Bad,
+			onClick = function()
+				Net.request("ServiceCancel", job.id)
+			end,
+			Parent = cardFrame,
+		})
 	else
 		local label = Kit.label({
-			Position = UDim2.fromOffset(172, 172),
-			Size = UDim2.fromOffset(210, 34),
+			Position = UDim2.fromOffset(176, 174),
+			Size = UDim2.fromOffset(212, 36),
 			Text = text,
-			TextSize = 17,
-			Font = T.FontBlack,
+			TextSize = 19,
 			TextColor3 = color,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 2,
 			Parent = cardFrame,
 		})
 		table.insert(live, { job = job, label = label })
@@ -16820,27 +16873,39 @@ local function renderBusiness()
 		return
 	end
 	local cash = if ClientState.profile then ClientState.profile.cash else 0
-	-- stats row
+	-- stats row: four chips
 	local stats = Kit.new("Frame", {
-		Size = UDim2.new(1, -16, 0, 90),
-		BackgroundColor3 = T.PanelAlt,
-		BorderSizePixel = 0,
+		Size = UDim2.new(1, -16, 0, 84),
+		BackgroundTransparency = 1,
 		LayoutOrder = 1,
 		Parent = businessBody,
 	})
-	Kit.corner(stats, 14)
-	Kit.list(stats, Enum.FillDirection.Horizontal, 0, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
+	Kit.new("UIGridLayout", {
+		CellSize = UDim2.new(0.25, -9, 1, 0),
+		CellPadding = UDim2.fromOffset(12, 0),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = stats,
+	})
 	for i, item in
 		{
-			{ "⭐", Strings.get("ServiceLevelShort", svc.level) },
-			{ "✅", Strings.get("ServiceOrdersDone", Format.int(svc.orders)) },
-			{ "🌟", Strings.get("ServiceStars", Format.int(svc.stars)) },
-			{ "💰", Format.money(svc.earned) },
+			{ "⭐", Strings.get("ServiceLevelShort", svc.level), T.Warn },
+			{ "✅", Strings.get("ServiceOrdersDone", Format.int(svc.orders)), T.Good },
+			{ "🌟", Strings.get("ServiceStars", Format.int(svc.stars)), T.Gold },
+			{ "💰", Format.money(svc.earned), T.Accent },
 		}
 	do
-		local cell = Kit.new("Frame", { Size = UDim2.new(0.25, 0, 1, 0), BackgroundTransparency = 1, LayoutOrder = i, Parent = stats })
-		Kit.label({ Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 38), Text = item[1], TextSize = 30, Parent = cell })
-		Kit.label({ Position = UDim2.fromOffset(0, 50), Size = UDim2.new(1, 0, 0, 26), Text = item[2], TextSize = 18, Font = T.FontBlack, Parent = cell })
+		local cell = Kit.card({ LayoutOrder = i, Parent = stats })
+		Kit.iconTile(cell, item[1], item[3], 52, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.5, 0) })
+		Kit.label({
+			Position = UDim2.fromOffset(72, 0),
+			Size = UDim2.new(1, -80, 1, 0),
+			Text = item[2],
+			TextScaled = true,
+			maxTextSize = 24,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 2,
+			Parent = cell,
+		})
 	end
 
 	-- upgrade cards
@@ -16852,54 +16917,52 @@ local function renderBusiness()
 		Parent = businessBody,
 	})
 	Kit.new("UIGridLayout", {
-		CellSize = UDim2.fromOffset(272, 176),
-		CellPadding = UDim2.fromOffset(10, 10),
+		CellSize = UDim2.fromOffset(272, 190),
+		CellPadding = UDim2.fromOffset(12, 14),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = grid,
 	})
+	local UPGRADE_COLORS = {
+		bays = T.Accent2,
+		parking = T.Teal,
+		tools = T.Accent,
+		marketing = T.Pink,
+		staff = T.Good,
+		training = T.Purple,
+	}
 	for i, u in ServiceConfig.Upgrades do
 		local level = svc.upgrades[u.id] or 0
 		local nextLevel = u.levels[level + 1]
-		local cardFrame = Kit.new("Frame", { BackgroundColor3 = T.Card, BorderSizePixel = 0, LayoutOrder = i, Parent = grid })
-		Kit.corner(cardFrame, 14)
-		Kit.stroke(cardFrame)
-		local iconBack = Kit.new("Frame", {
-			Position = UDim2.fromOffset(12, 12),
-			Size = UDim2.fromOffset(56, 56),
-			BackgroundColor3 = T.Accent,
-			BorderSizePixel = 0,
-			Parent = cardFrame,
-		})
-		Kit.corner(iconBack, 16)
-		Kit.gradient(iconBack, Color3.new(1, 1, 1), Color3.fromRGB(180, 180, 190), 90)
-		Kit.label({ Size = UDim2.fromScale(1, 1), Text = u.icon, TextSize = 32, Parent = iconBack })
+		local cardFrame = Kit.card({ LayoutOrder = i, Parent = grid })
+		Kit.iconTile(cardFrame, u.icon, UPGRADE_COLORS[u.id] or T.Accent, 60, { Position = UDim2.fromOffset(12, 12) })
 		Kit.label({
-			Position = UDim2.fromOffset(78, 12),
-			Size = UDim2.fromOffset(186, 26),
+			Position = UDim2.fromOffset(84, 12),
+			Size = UDim2.fromOffset(178, 30),
 			Text = Strings.get("Upgrade_" .. u.id),
-			TextSize = 20,
-			Font = T.FontBlack,
+			TextSize = 23,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 2,
 			Parent = cardFrame,
 		})
 		-- level pips
-		local pips = Kit.new("Frame", { Position = UDim2.fromOffset(78, 42), Size = UDim2.fromOffset(186, 14), BackgroundTransparency = 1, Parent = cardFrame })
+		local pips = Kit.new("Frame", { Position = UDim2.fromOffset(84, 48), Size = UDim2.fromOffset(178, 16), BackgroundTransparency = 1, Parent = cardFrame })
 		Kit.list(pips, Enum.FillDirection.Horizontal, 5)
 		for k = 1, #u.levels do
 			local pip = Kit.new("Frame", {
-				Size = UDim2.fromOffset(22, 10),
-				BackgroundColor3 = if k <= level then T.Good else Color3.fromRGB(70, 78, 100),
+				Size = UDim2.fromOffset(26, 14),
+				BackgroundColor3 = if k <= level then T.Good else Color3.fromRGB(20, 30, 62),
 				BorderSizePixel = 0,
 				LayoutOrder = k,
 				Parent = pips,
 			})
-			Kit.corner(pip, 5)
+			Kit.corner(pip, 7)
+			Kit.stroke(pip, T.Ink, 2, 0)
 		end
 		Kit.label({
-			Position = UDim2.fromOffset(12, 76),
-			Size = UDim2.new(1, -24, 0, 44),
+			Position = UDim2.fromOffset(14, 80),
+			Size = UDim2.new(1, -28, 0, 44),
 			Text = Strings.get("UpgradeDesc_" .. u.id),
-			TextSize = 15,
+			TextSize = 16,
 			Font = T.FontMedium,
 			TextColor3 = T.Muted,
 			TextWrapped = true,
@@ -16909,21 +16972,20 @@ local function renderBusiness()
 		})
 		local buttonText, buttonColor, enabled
 		if not nextLevel then
-			buttonText, buttonColor, enabled = Strings.get("MaxLevel"), Color3.fromRGB(70, 78, 100), false
+			buttonText, buttonColor, enabled = "✔ " .. Strings.get("MaxLevel"), T.Disabled, false
 		elseif svc.level < nextLevel.level then
-			buttonText, buttonColor, enabled = "🔒 " .. Strings.get("ServiceNeedLevelShort", nextLevel.level), Color3.fromRGB(70, 78, 100), false
+			buttonText, buttonColor, enabled = "🔒 " .. Strings.get("ServiceNeedLevelShort", nextLevel.level), T.Disabled, false
 		else
-			buttonText = Format.money(nextLevel.price)
-			buttonColor = if cash >= nextLevel.price then T.Good else Color3.fromRGB(120, 90, 60)
+			buttonText = "💰 " .. Format.money(nextLevel.price)
+			buttonColor = if cash >= nextLevel.price then T.Good else T.Bad
 			enabled = true
 		end
 		Kit.button({
-			Position = UDim2.fromOffset(12, 128),
-			Size = UDim2.new(1, -24, 0, 38),
+			Position = UDim2.fromOffset(14, 132),
+			Size = UDim2.new(1, -28, 0, 42),
 			Text = buttonText,
-			TextSize = 19,
+			TextSize = 21,
 			BackgroundColor3 = buttonColor,
-			AutoButtonColor = false,
 			onClick = function()
 				if enabled then
 					request("ServiceBuy", u.id)
@@ -16936,11 +16998,11 @@ local function renderBusiness()
 	-- staff
 	local s = ClientState.service
 	Kit.label({
-		Size = UDim2.new(1, -16, 0, 34),
+		Size = UDim2.new(1, -16, 0, 40),
 		Text = "👷 " .. Strings.get("ServiceStaffTitle"),
-		TextSize = 22,
-		Font = T.FontBlack,
+		TextSize = 28,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 2.5,
 		LayoutOrder = 3,
 		Parent = businessBody,
 	})
@@ -16952,41 +17014,45 @@ local function renderBusiness()
 		Parent = businessBody,
 	})
 	Kit.new("UIGridLayout", {
-		CellSize = UDim2.fromOffset(272, 64),
-		CellPadding = UDim2.fromOffset(10, 10),
+		CellSize = UDim2.fromOffset(272, 72),
+		CellPadding = UDim2.fromOffset(12, 12),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = staff,
 	})
 	local workers = if s then s.workers else {}
 	if #workers == 0 then
+		local empty = Kit.card({ LayoutOrder = 0, Parent = staff })
 		Kit.label({
+			Position = UDim2.fromOffset(12, 6),
+			Size = UDim2.new(1, -24, 1, -12),
 			Text = Strings.get("ServiceNoStaff"),
-			TextSize = 16,
+			TextSize = 14,
+			Font = T.FontMedium,
 			TextColor3 = T.Muted,
 			TextWrapped = true,
-			Parent = staff,
+			Parent = empty,
 		})
 	end
 	for _, w in workers do
 		local name = ServiceConfig.WorkerNames[((w.index - 1) % #ServiceConfig.WorkerNames) + 1]
-		local row = Kit.new("Frame", { BackgroundColor3 = T.Card, BorderSizePixel = 0, LayoutOrder = w.index, Parent = staff })
-		Kit.corner(row, 12)
-		Kit.label({ Position = UDim2.fromOffset(10, 0), Size = UDim2.fromOffset(44, 64), Text = "👷", TextSize = 30, Parent = row })
+		local row = Kit.card({ LayoutOrder = w.index, Parent = staff })
+		Kit.iconTile(row, "👷", if w.state == "idle" then T.Disabled else T.Good, 50, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 11, 0.5, 0) })
 		Kit.label({
-			Position = UDim2.fromOffset(60, 8),
-			Size = UDim2.fromOffset(200, 24),
+			Position = UDim2.fromOffset(72, 8),
+			Size = UDim2.fromOffset(190, 28),
 			Text = Strings.pick(name),
-			TextSize = 18,
-			Font = T.FontBlack,
+			TextSize = 22,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 2,
 			Parent = row,
 		})
 		Kit.label({
-			Position = UDim2.fromOffset(60, 34),
-			Size = UDim2.fromOffset(200, 20),
+			Position = UDim2.fromOffset(72, 38),
+			Size = UDim2.fromOffset(190, 22),
 			Text = Strings.get("ServiceWorker_" .. w.state),
 			TextSize = 15,
-			TextColor3 = if w.state == "idle" then T.Muted else T.Good,
+			Font = T.FontMedium,
+			TextColor3 = if w.state == "idle" then T.Muted else Color3.fromRGB(140, 255, 160),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = row,
 		})
@@ -17003,7 +17069,7 @@ local resultVehicle: TextLabel
 local resultMoney: TextLabel
 local resultDetail: TextLabel
 
-local function showResult(data: any)
+local function showResult(data: any, instant: boolean?)
 	resultVehicle.Text = Workshop.vehicleName({ source = data.source, vehicle = data.vehicle })
 	resultTitle.Text = Strings.get("ServiceResultTitle")
 	resultMoney.Text = "+" .. Format.money((data.reward or 0) + (data.tip or 0))
@@ -17012,16 +17078,20 @@ local function showResult(data: any)
 		detail = Strings.get("ServiceResultTip", Format.money(data.tip)) .. "   ·   " .. detail
 	end
 	resultDetail.Text = detail
+	local stars = data.stars or 0
 	for i, star in resultStars do
-		star.TextColor3 = Color3.fromRGB(70, 76, 96)
-		star.TextSize = 54
-		task.delay(0.35 + i * 0.28, function()
-			if i <= (data.stars or 0) then
-				star.TextColor3 = T.Gold
-				star.TextSize = 80
-				Kit.tween(star, 0.25, { TextSize = 64 }, Enum.EasingStyle.Back)
-			end
-		end)
+		local lit = i <= stars
+		star.TextColor3 = if lit then T.Gold else Color3.fromRGB(26, 36, 70)
+		star.TextSize = if lit then 76 else 62
+		if lit and not instant then
+			-- pop the earned stars one after another
+			star.TextTransparency = 1
+			task.delay(0.3 + i * 0.25, function()
+				star.TextTransparency = 0
+				star.TextSize = 96
+				Kit.tween(star, 0.3, { TextSize = 76 }, Enum.EasingStyle.Back)
+			end)
+		end
 	end
 	setResultOpen(true)
 end
@@ -17038,11 +17108,13 @@ local function showLevelUp(level: number)
 	end
 	local unlocks = ServiceConfig.unlocksAt(level)
 	if #unlocks == 0 then
-		Kit.pill(levelList, "💰 " .. Strings.get("ServiceUnlockMore"), T.PanelAlt, 1)
+		table.insert(unlocks, { kind = "more", id = "", icon = "💰" })
 	end
 	for i, u in unlocks do
 		local text
-		if u.kind == "tier" then
+		if u.kind == "more" then
+			text = Strings.get("ServiceUnlockMore")
+		elseif u.kind == "tier" then
 			local tier = ServiceConfig.getTier(u.id)
 			text = Strings.get("ServiceUnlockTier", if tier then Strings.pick(tier.name) else u.id)
 		elseif u.kind == "service" then
@@ -17050,9 +17122,21 @@ local function showLevelUp(level: number)
 		else
 			text = Strings.get("ServiceUnlockUpgrade", Strings.get("Upgrade_" .. u.id))
 		end
-		local pill = Kit.pill(levelList, u.icon .. "  " .. text, T.PanelAlt, i)
-		pill.TextSize = 19
-		pill.Size = UDim2.fromOffset(0, 36)
+		local row = Kit.card({ Size = UDim2.new(1, 0, 0, 64), LayoutOrder = i, Parent = levelList })
+		Kit.iconTile(row, u.icon, if u.kind == "tier" then T.Accent2 elseif u.kind == "service" then T.Pink else T.Good, 48, {
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0, 10, 0.5, 0),
+		})
+		Kit.label({
+			Position = UDim2.fromOffset(70, 0),
+			Size = UDim2.new(1, -80, 1, 0),
+			Text = text,
+			TextSize = 21,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextWrapped = true,
+			outline = 2,
+			Parent = row,
+		})
 	end
 	setLevelOpen(true)
 end
@@ -17081,8 +17165,8 @@ local function setHint(key: string?, ...: any)
 	hintLabel.Text = Strings.get(key, ...)
 	if not hint.Visible then
 		hint.Visible = true
-		hint.Position = UDim2.new(0.5, 0, 0, -60)
-		Kit.tween(hint, 0.3, { Position = UDim2.new(0.5, 0, 0, 82) }, Enum.EasingStyle.Back)
+		hint.Position = UDim2.new(0.5, 0, 0, -80)
+		Kit.tween(hint, 0.35, { Position = UDim2.new(0.5, 0, 0, 18) }, Enum.EasingStyle.Back)
 	end
 end
 
@@ -17102,10 +17186,10 @@ local function refreshRail()
 	buttons.orders.setBadge(waiting)
 	buttons.orders.setPulse(waiting > 0 and mine == nil)
 	local canWork = mine ~= nil and mine.state == "inBay"
-	buttons.work.root.Visible = mine ~= nil
 	buttons.work.setPulse(canWork and not ClientState.workingJob)
-	buttons.work.setColor(if canWork then T.Accent else Color3.fromRGB(90, 96, 120))
-	buttons.work.caption.Text = if canWork then Strings.get("ServiceWork") else Strings.get("ServiceStateToBayShort")
+	buttons.work.setColor(if canWork then T.Accent elseif mine then T.Warn else T.Disabled)
+	buttons.work.caption.Text = if mine and not canWork then Strings.get("ServiceStateToBayShort") else Strings.get("ServiceWork")
+	buttons.work.setBadge(if canWork then 1 else nil)
 	-- business: badge when something is affordable
 	local svc = svcProfile()
 	local cash = if ClientState.profile then ClientState.profile.cash else 0
@@ -17277,70 +17361,65 @@ end
 function Service.init()
 	gui = Kit.screen("CarsService", 5)
 
-	-- level bar under the cash
+	-- service level under the cash: a star badge and an xp bar
 	local levelBar = Kit.panel({
 		Name = "ServiceLevel",
-		Position = UDim2.new(0, 20, 0, 80),
-		Size = UDim2.fromOffset(230, 40),
+		Position = UDim2.new(0, 34, 0, 82),
+		Size = UDim2.fromOffset(236, 46),
 		Parent = gui,
 	})
+	Kit.corner(levelBar, 23)
 	local badge = Kit.new("Frame", {
-		Position = UDim2.fromOffset(6, 5),
-		Size = UDim2.fromOffset(30, 30),
-		BackgroundColor3 = T.Accent2,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0, 2, 0.5, 0),
+		Size = UDim2.fromOffset(56, 56),
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		Parent = levelBar,
 	})
-	Kit.corner(badge, 15)
-	Kit.stroke(badge, Color3.new(1, 1, 1), 2, 0.3)
-	levelBadge = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "1", TextSize = 17, Font = T.FontBlack, Parent = badge })
+	Kit.corner(badge, 28)
+	Kit.stroke(badge, T.Ink, 3, 0)
+	Kit.gradient(badge, Color3.fromRGB(120, 220, 255), T.Accent2, 90)
+	Kit.label({ Size = UDim2.fromScale(1, 1), Text = "⭐", TextSize = 34, TextTransparency = 0.25, Parent = badge })
+	levelBadge = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "1", TextSize = 24, outline = 2.5, Parent = badge })
 	Kit.label({
-		Position = UDim2.fromOffset(44, 2),
-		Size = UDim2.fromOffset(176, 16),
+		Position = UDim2.fromOffset(36, 3),
+		Size = UDim2.fromOffset(190, 18),
 		Text = "🔧 " .. Strings.get("ServiceTitle"),
-		TextSize = 13,
+		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 1.5,
 		Parent = levelBar,
 	})
 	local xpBack = Kit.new("Frame", {
-		Position = UDim2.fromOffset(44, 21),
-		Size = UDim2.fromOffset(176, 13),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.85,
+		Position = UDim2.fromOffset(36, 23),
+		Size = UDim2.fromOffset(188, 16),
+		BackgroundColor3 = Color3.fromRGB(16, 24, 50),
 		BorderSizePixel = 0,
 		Parent = levelBar,
 	})
-	Kit.corner(xpBack, 6)
-	xpFill = Kit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Accent2, BorderSizePixel = 0, Parent = xpBack })
-	Kit.corner(xpFill, 6)
-	xpText = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "", TextSize = 11, Font = T.FontBlack, TextStrokeTransparency = 0.5, Parent = xpBack })
+	Kit.corner(xpBack, 8)
+	Kit.stroke(xpBack, T.Ink, 2, 0)
+	xpFill = Kit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, Parent = xpBack })
+	Kit.corner(xpFill, 8)
+	Kit.gradient(xpFill, Color3.fromRGB(140, 235, 255), T.Accent2, 90)
+	xpText = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "", TextSize = 12, outline = 1.5, Parent = xpBack })
 
-	-- rail of big buttons
-	rail = Kit.new("Frame", {
-		Name = "ServiceRail",
-		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 20, 0.56, 0),
-		Size = UDim2.fromOffset(84, 380),
-		BackgroundTransparency = 1,
-		Parent = gui,
-	})
-	Kit.list(rail, Enum.FillDirection.Vertical, 12, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center)
-	buttons.home = Kit.bigButton({
+	-- big tiles in the shared rail
+	buttons.home = Rail.add({
 		name = "Home",
 		icon = "🏠",
 		caption = Strings.get("ServiceHome"),
-		color = Color3.fromRGB(40, 170, 160),
+		color = T.Teal,
 		layoutOrder = 1,
-		parent = rail,
 		onClick = Service.goHome,
 	})
-	buttons.orders = Kit.bigButton({
+	buttons.orders = Rail.add({
 		name = "Orders",
 		icon = "📋",
 		caption = Strings.get("ServiceOrders"),
-		color = Color3.fromRGB(60, 130, 230),
+		color = T.Accent2,
 		layoutOrder = 2,
-		parent = rail,
 		onClick = function()
 			if ordersOpen then
 				ordersOpen = false
@@ -17350,23 +17429,20 @@ function Service.init()
 			end
 		end,
 	})
-	buttons.work = Kit.bigButton({
+	buttons.work = Rail.add({
 		name = "Work",
 		icon = "🧽",
 		caption = Strings.get("ServiceWork"),
-		color = T.Accent,
+		color = T.Disabled,
 		layoutOrder = 3,
-		parent = rail,
 		onClick = onWork,
 	})
-	buttons.work.root.Visible = false
-	buttons.business = Kit.bigButton({
+	buttons.business = Rail.add({
 		name = "Business",
 		icon = "💼",
 		caption = Strings.get("ServiceBusiness"),
-		color = Color3.fromRGB(150, 90, 220),
+		color = T.Purple,
 		layoutOrder = 4,
-		parent = rail,
 		onClick = function()
 			if businessOpen then
 				businessOpen = false
@@ -17377,52 +17453,57 @@ function Service.init()
 		end,
 	})
 
-	-- hint pill
+	-- tutorial hint: a bright card at the top with a pointing icon
 	hint = Kit.panel({
 		Name = "ServiceHint",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 82),
-		Size = UDim2.fromOffset(560, 54),
-		BackgroundColor3 = Color3.fromRGB(30, 40, 70),
+		Position = UDim2.new(0.5, 0, 0, 18),
+		Size = UDim2.fromOffset(600, 66),
+		BackgroundColor3 = Color3.fromRGB(255, 176, 30),
 		Visible = false,
 		Parent = gui,
 	})
-	Kit.stroke(hint, T.Accent2, 2, 0.2)
+	Kit.corner(hint, 20)
+	Kit.iconTile(hint, "💡", Color3.fromRGB(255, 230, 90), 54, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0) })
 	hintLabel = Kit.label({
-		Size = UDim2.new(1, -24, 1, 0),
-		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.new(1, -86, 1, -12),
+		Position = UDim2.fromOffset(72, 6),
 		Text = "",
-		TextSize = 19,
-		Font = T.FontBlack,
-		TextWrapped = true,
+		TextScaled = true,
+		maxTextSize = 22,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 2.5,
 		Parent = hint,
 	})
 
 	-- orders window
 	local content
-	ordersWindow, content, setOrdersOpen = Kit.modal(gui, "Orders", "📋 " .. Strings.get("ServiceOrdersTitle"), Vector2.new(840, 600), Color3.fromRGB(60, 130, 230))
+	ordersWindow, content, setOrdersOpen = Kit.modal(gui, "Orders", "📋 " .. Strings.get("ServiceOrdersTitle"), Vector2.new(870, 640), T.Accent2)
 	ordersInfo = Kit.label({
-		Position = UDim2.fromOffset(20, 8),
-		Size = UDim2.new(1, -40, 0, 26),
+		Position = UDim2.fromOffset(22, 0),
+		Size = UDim2.new(1, -44, 0, 28),
 		Text = "",
-		TextSize = 16,
+		TextSize = 18,
 		TextColor3 = T.Muted,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 1.5,
 		Parent = content,
 	})
 	ordersList = Kit.new("ScrollingFrame", {
-		Position = UDim2.fromOffset(16, 40),
-		Size = UDim2.new(1, -32, 1, -52),
+		Position = UDim2.fromOffset(16, 34),
+		Size = UDim2.new(1, -24, 1, -46),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		ScrollBarThickness = 6,
+		ScrollBarThickness = 8,
+		ScrollBarImageColor3 = Color3.fromRGB(150, 180, 255),
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		CanvasSize = UDim2.new(),
 		Parent = content,
 	})
+	Kit.padding(ordersList, 4, 6)
 	Kit.new("UIGridLayout", {
-		CellSize = UDim2.fromOffset(392, 214),
-		CellPadding = UDim2.fromOffset(12, 12),
+		CellSize = UDim2.fromOffset(400, 222),
+		CellPadding = UDim2.fromOffset(14, 14),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = ordersList,
 	})
@@ -17431,40 +17512,60 @@ function Service.init()
 	end)
 
 	-- business window
-	businessWindow, content, setBusinessOpen = Kit.modal(gui, "Business", "💼 " .. Strings.get("ServiceBusinessTitle"), Vector2.new(900, 620), Color3.fromRGB(150, 90, 220))
+	businessWindow, content, setBusinessOpen = Kit.modal(gui, "Business", "💼 " .. Strings.get("ServiceBusinessTitle"), Vector2.new(920, 660), T.Purple)
 	businessBody = Kit.new("ScrollingFrame", {
-		Position = UDim2.fromOffset(16, 12),
-		Size = UDim2.new(1, -24, 1, -24),
+		Position = UDim2.fromOffset(16, 0),
+		Size = UDim2.new(1, -24, 1, -14),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		ScrollBarThickness = 6,
+		ScrollBarThickness = 8,
+		ScrollBarImageColor3 = Color3.fromRGB(190, 160, 255),
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		CanvasSize = UDim2.new(),
 		Parent = content,
 	})
-	Kit.list(businessBody, Enum.FillDirection.Vertical, 12)
+	Kit.list(businessBody, Enum.FillDirection.Vertical, 14)
+	Kit.padding(businessBody, 4, 6)
 	businessWindow:GetPropertyChangedSignal("Visible"):Connect(function()
 		businessOpen = businessWindow.Visible
 	end)
 
 	-- result card
-	resultWindow, content, setResultOpen = Kit.modal(gui, "Result", "🎉", Vector2.new(520, 400), T.Good)
+	resultWindow, content, setResultOpen = Kit.modal(gui, "Result", "🎉", Vector2.new(540, 430), T.Good)
 	resultTitle = resultWindow:FindFirstChild("Title", true) :: TextLabel
-	resultVehicle = Kit.label({ Position = UDim2.fromOffset(0, 12), Size = UDim2.new(1, 0, 0, 30), Text = "", TextSize = 24, Font = T.FontBlack, Parent = content })
-	local starRow = Kit.new("Frame", { Position = UDim2.fromOffset(0, 48), Size = UDim2.new(1, 0, 0, 84), BackgroundTransparency = 1, Parent = content })
-	Kit.list(starRow, Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
+	resultVehicle = Kit.label({ Position = UDim2.fromOffset(0, 4), Size = UDim2.new(1, 0, 0, 34), Text = "", TextSize = 28, outline = 2.5, Parent = content })
+	local starRow = Kit.new("Frame", { Position = UDim2.fromOffset(0, 40), Size = UDim2.new(1, 0, 0, 96), BackgroundTransparency = 1, Parent = content })
+	Kit.list(starRow, Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
 	for i = 1, 3 do
-		table.insert(resultStars, Kit.label({ Size = UDim2.fromOffset(80, 84), Text = "★", TextSize = 64, LayoutOrder = i, TextTruncate = Enum.TextTruncate.None, Parent = starRow }))
+		local star = Kit.label({
+			Size = UDim2.fromOffset(96, 96),
+			Text = "★",
+			TextSize = 76,
+			TextColor3 = T.Gold,
+			LayoutOrder = i,
+			TextTruncate = Enum.TextTruncate.None,
+			outline = 3.5,
+			Parent = starRow,
+		})
+		table.insert(resultStars, star)
 	end
-	resultMoney = Kit.label({ Position = UDim2.fromOffset(0, 136), Size = UDim2.new(1, 0, 0, 52), Text = "", TextSize = 46, Font = T.FontBlack, TextColor3 = T.Gold, Parent = content })
-	resultDetail = Kit.label({ Position = UDim2.fromOffset(0, 192), Size = UDim2.new(1, 0, 0, 26), Text = "", TextSize = 18, TextColor3 = T.Accent2, Parent = content })
+	local moneyRow = Kit.card({
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 142),
+		Size = UDim2.fromOffset(300, 64),
+		Parent = content,
+	})
+	Kit.coin(moneyRow, 46, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.5, 0) })
+	resultMoney = Kit.label({ Position = UDim2.fromOffset(66, 0), Size = UDim2.new(1, -76, 1, 0), Text = "", TextSize = 44, TextColor3 = T.Gold, outline = 3, Parent = moneyRow })
+	resultDetail = Kit.label({ Position = UDim2.fromOffset(0, 214), Size = UDim2.new(1, 0, 0, 28), Text = "", TextSize = 20, TextColor3 = Color3.fromRGB(150, 225, 255), outline = 2, Parent = content })
 	Kit.button({
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -20),
-		Size = UDim2.fromOffset(240, 56),
+		Position = UDim2.new(0.5, 0, 1, -24),
+		Size = UDim2.fromOffset(260, 60),
 		Text = Strings.get("ServiceContinue"),
-		TextSize = 24,
+		TextSize = 28,
 		BackgroundColor3 = T.Good,
+		cornerRadius = 16,
 		onClick = function()
 			setResultOpen(false)
 		end,
@@ -17472,16 +17573,17 @@ function Service.init()
 	})
 
 	-- level-up card
-	levelWindow, content, setLevelOpen = Kit.modal(gui, "LevelUp", "⭐", Vector2.new(560, 440), T.Gold)
+	levelWindow, content, setLevelOpen = Kit.modal(gui, "LevelUp", "⭐", Vector2.new(580, 470), Color3.fromRGB(255, 170, 20))
 	levelTitle = levelWindow:FindFirstChild("Title", true) :: TextLabel
-	levelList = Kit.new("Frame", { Position = UDim2.fromOffset(20, 20), Size = UDim2.new(1, -40, 1, -110), BackgroundTransparency = 1, Parent = content })
-	Kit.list(levelList, Enum.FillDirection.Vertical, 10, Enum.HorizontalAlignment.Center)
+	levelList = Kit.new("Frame", { Position = UDim2.fromOffset(24, 8), Size = UDim2.new(1, -48, 1, -110), BackgroundTransparency = 1, Parent = content })
+	Kit.list(levelList, Enum.FillDirection.Vertical, 12, Enum.HorizontalAlignment.Center)
 	Kit.button({
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -20),
-		Size = UDim2.fromOffset(240, 56),
+		Position = UDim2.new(0.5, 0, 1, -24),
+		Size = UDim2.fromOffset(260, 60),
 		Text = Strings.get("ServiceCool"),
-		TextSize = 24,
+		TextSize = 28,
+		cornerRadius = 16,
 		BackgroundColor3 = T.Accent,
 		onClick = function()
 			setLevelOpen(false)
@@ -17529,7 +17631,8 @@ function Service.start()
 		renderBusiness()
 	end)
 	ClientState.WorkingChanged:Connect(function(id)
-		rail.Visible = id == nil
+		Rail.setVisible(id == nil)
+		gui.Enabled = id == nil
 		refreshRail()
 	end)
 	CollectionService:GetInstanceAddedSignal("ServiceCustomer"):Connect(function()
@@ -17550,6 +17653,16 @@ function Service.start()
 		end
 	end)
 end
+
+-- Hooks for the UI screenshot test (the mock has no task.delay).
+Service._test = {
+	showResult = function(data)
+		showResult(data, true)
+	end,
+	showLevelUp = function(level)
+		showLevelUp(level)
+	end,
+}
 
 return Service
 ]]></string>
@@ -18813,17 +18926,16 @@ local function renderChips(sess: Session)
 		local def = ServiceConfig.Steps[stepId]
 		local done = i < sess.step
 		local current = i == sess.step
-		local chip = Kit.new("Frame", {
-			Size = UDim2.fromOffset(if current then 58 else 46, if current then 58 else 46),
-			BackgroundColor3 = if done then T.Good elseif current then def.color else T.Card,
-			BackgroundTransparency = if current or done then 0 else 0.2,
-			BorderSizePixel = 0,
+		local size = if current then 62 else 48
+		local chip = Kit.iconTile(chips, if done then "✔" else def.icon, if done then T.Good elseif current then def.color else T.Disabled, size, {
 			LayoutOrder = i,
-			Parent = chips,
 		})
-		Kit.corner(chip, 29)
-		Kit.stroke(chip, Color3.new(1, 1, 1), if current then 3 else 1, if current then 0.1 else 0.7)
-		Kit.label({ Size = UDim2.fromScale(1, 1), Text = if done then "✓" else def.icon, TextSize = if current then 30 else 22, Font = T.FontBlack, Parent = chip })
+		Kit.corner(chip, size)
+		if done then
+			local icon = chip:FindFirstChild("Icon") :: TextLabel
+			icon.TextSize = 26
+			Kit.outline(icon, 2)
+		end
 	end
 end
 
@@ -18834,11 +18946,18 @@ local function renderCard(sess: Session)
 	end
 	local def = ServiceConfig.Steps[stepId]
 	cardIcon.Text = def.icon
-	cardIconBack.BackgroundColor3 = def.color
+	local top, mid = Kit.shades(def.color)
+	local g = cardIconBack:FindFirstChildOfClass("UIGradient")
+	if g then
+		g.Color = ColorSequence.new(top, mid)
+	end
 	cardTitle.Text = string.format("%s %d/%d · %s", Strings.get("ServiceStep"), sess.step, #sess.steps, stepName(stepId))
 	local touch = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 	cardHint.Text = Strings.get("StepHint_" .. stepId) .. "\n" .. Strings.get(if touch then "ServiceHowTouch" else "ServiceHowMouse")
-	barFill.BackgroundColor3 = def.color
+	local fillGradient = barFill:FindFirstChildOfClass("UIGradient")
+	if fillGradient then
+		fillGradient.Color = ColorSequence.new(top, mid)
+	end
 	barFill.Size = UDim2.fromScale(0, 1)
 	percent.Text = "0%"
 	ringStroke.Color = def.color
@@ -18851,11 +18970,10 @@ local function showCheer(text: string, color: Color3)
 	cheer.TextColor3 = color
 	cheer.Visible = true
 	cheer.TextTransparency = 0
-	cheer.TextStrokeTransparency = 0.3
 	cheer.Size = UDim2.fromOffset(200, 50)
-	Kit.tween(cheer, 0.25, { Size = UDim2.fromOffset(600, 110) }, Enum.EasingStyle.Back)
+	Kit.tween(cheer, 0.25, { Size = UDim2.fromOffset(640, 120) }, Enum.EasingStyle.Back)
 	task.delay(0.9, function()
-		Kit.tween(cheer, 0.3, { TextTransparency = 1, TextStrokeTransparency = 1 })
+		Kit.tween(cheer, 0.3, { TextTransparency = 1 })
 	end)
 end
 
@@ -18870,17 +18988,18 @@ local function buildHud()
 		Size = UDim2.fromOffset(620, 112),
 		Parent = gui,
 	})
+	Kit.corner(topBar, 22)
 	titleLabel = Kit.label({
 		Position = UDim2.fromOffset(0, 6),
-		Size = UDim2.new(1, 0, 0, 30),
+		Size = UDim2.new(1, 0, 0, 32),
 		Text = "",
-		TextSize = 24,
-		Font = T.FontBlack,
+		TextSize = 26,
+		outline = 2.5,
 		Parent = topBar,
 	})
 	chips = Kit.new("Frame", {
-		Position = UDim2.fromOffset(0, 42),
-		Size = UDim2.new(1, 0, 0, 60),
+		Position = UDim2.fromOffset(0, 40),
+		Size = UDim2.new(1, 0, 0, 66),
 		BackgroundTransparency = 1,
 		Parent = topBar,
 	})
@@ -18894,74 +19013,68 @@ local function buildHud()
 		Size = UDim2.fromOffset(600, 132),
 		Parent = gui,
 	})
-	cardIconBack = Kit.new("Frame", {
-		Position = UDim2.fromOffset(16, 16),
-		Size = UDim2.fromOffset(100, 100),
-		BackgroundColor3 = T.Accent,
-		BorderSizePixel = 0,
-		Parent = card,
-	})
-	Kit.corner(cardIconBack, 50)
-	Kit.gradient(cardIconBack, Color3.new(1, 1, 1), Color3.fromRGB(170, 170, 180), 90)
-	Kit.stroke(cardIconBack, Color3.new(1, 1, 1), 3, 0.3)
-	cardIcon = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "", TextSize = 56, Parent = cardIconBack })
+	Kit.corner(card, 24)
+	cardIconBack = Kit.iconTile(card, "", T.Accent, 104, { Position = UDim2.fromOffset(14, 14) })
+	cardIcon = cardIconBack:FindFirstChild("Icon") :: TextLabel
 	cardTitle = Kit.label({
-		Position = UDim2.fromOffset(134, 14),
-		Size = UDim2.new(1, -150, 0, 32),
+		Position = UDim2.fromOffset(134, 12),
+		Size = UDim2.new(1, -150, 0, 34),
 		Text = "",
-		TextSize = 26,
-		Font = T.FontBlack,
+		TextSize = 28,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 2.5,
 		Parent = card,
 	})
 	cardHint = Kit.label({
 		Position = UDim2.fromOffset(134, 48),
 		Size = UDim2.new(1, -150, 0, 36),
 		Text = "",
-		TextSize = 17,
+		TextSize = 16,
 		Font = T.FontMedium,
-		TextColor3 = T.Muted,
+		TextColor3 = Color3.fromRGB(205, 220, 255),
 		TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		Parent = card,
 	})
 	local barBack = Kit.new("Frame", {
-		Position = UDim2.fromOffset(134, 94),
-		Size = UDim2.new(1, -220, 0, 20),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.85,
+		Position = UDim2.fromOffset(134, 92),
+		Size = UDim2.new(1, -224, 0, 24),
+		BackgroundColor3 = Color3.fromRGB(14, 20, 50),
 		BorderSizePixel = 0,
 		Parent = card,
 	})
-	Kit.corner(barBack, 10)
-	barFill = Kit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Good, BorderSizePixel = 0, Parent = barBack })
-	Kit.corner(barFill, 10)
+	Kit.corner(barBack, 12)
+	Kit.stroke(barBack, T.Ink, 3, 0)
+	barFill = Kit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, Parent = barBack })
+	Kit.corner(barFill, 12)
+	Kit.gradient(barFill, Color3.fromRGB(140, 255, 150), T.Good, 90)
 	percent = Kit.label({
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -16, 0, 88),
-		Size = UDim2.fromOffset(70, 30),
+		Position = UDim2.new(1, -16, 0, 86),
+		Size = UDim2.fromOffset(76, 34),
 		Text = "0%",
-		TextSize = 24,
-		Font = T.FontBlack,
+		TextSize = 28,
 		TextXAlignment = Enum.TextXAlignment.Right,
+		outline = 2.5,
 		Parent = card,
 	})
 
 	-- exit
-	local exit = Kit.button({
+	Kit.button({
 		Name = "ExitWork",
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -24, 1, -24),
 		Size = UDim2.fromOffset(150, 56),
-		Text = "✕  " .. Strings.get("ServiceExitWork"),
-		BackgroundColor3 = Color3.fromRGB(60, 66, 86),
+		Text = "✖  " .. Strings.get("ServiceExitWork"),
+		TextSize = 22,
+		BackgroundColor3 = T.Bad,
+		cornerRadius = 16,
 		onClick = function()
 			Workshop.exit()
 		end,
 		Parent = gui,
 	})
-	Kit.stroke(exit, Color3.new(1, 1, 1), 2, 0.7)
 
 	-- rotate buttons (also A/D, arrows or right mouse drag)
 	local rotate = Kit.new("Frame", {
@@ -18975,7 +19088,7 @@ local function buildHud()
 		local b = Kit.bigButton({
 			icon = if dir < 0 then "⟲" else "⟳",
 			caption = "",
-			color = Color3.fromRGB(70, 90, 140),
+			color = T.Accent2,
 			size = 70,
 			layoutOrder = i,
 			parent = rotate,
@@ -19005,13 +19118,13 @@ local function buildHud()
 		end)
 	end
 	controlsHint = Kit.label({
-		Position = UDim2.fromOffset(0, 80),
-		Size = UDim2.fromOffset(260, 24),
+		Position = UDim2.fromOffset(0, 84),
+		Size = UDim2.fromOffset(360, 24),
 		Text = Strings.get("ServiceRotateHint"),
-		TextSize = 14,
-		TextColor3 = T.Muted,
+		TextSize = 15,
+		Font = T.FontMedium,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextStrokeTransparency = 0.6,
+		outline = 1.5,
 		Parent = rotate,
 	})
 
@@ -19024,7 +19137,16 @@ local function buildHud()
 		Parent = gui,
 	})
 	Kit.corner(ring, 1000)
-	ringStroke = Kit.stroke(ring, T.Accent, 3, 0.15)
+	ringStroke = Kit.stroke(ring, T.Accent, 4, 0)
+	local inner = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -8, 1, -8),
+		BackgroundTransparency = 1,
+		Parent = ring,
+	})
+	Kit.corner(inner, 1000)
+	Kit.stroke(inner, T.Ink, 2, 0.3)
 	local dot = Kit.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
@@ -19042,7 +19164,7 @@ local function buildHud()
 		Text = "",
 		TextScaled = true,
 		Font = T.FontBlack,
-		TextStrokeTransparency = 0.3,
+		outline = 5,
 		Visible = false,
 		ZIndex = 40,
 		Parent = gui,
@@ -19867,37 +19989,57 @@ return WorldText
           <Item class="ModuleScript" referent="66">
             <Properties>
               <string name="Name">Kit</string>
-              <string name="Source"><![CDATA[-- Kit: tiny UI toolkit so every screen shares one look (dark glass panels,
--- orange accent, rounded corners) and one way of building instances.
+              <string name="Source"><![CDATA[-- Kit: the UI toolkit every screen is built with, so the whole game shares one
+-- look: chunky "toy" style like the best Roblox games. Deep-blue panels with a
+-- thick ink outline, vivid 3D buttons (gradient face, glossy highlight and a
+-- darker lip underneath that the face sinks into when pressed), rounded
+-- FredokaOne text with an outline, emoji icons on drawn tiles.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
+local Strings = require(ReplicatedStorage:WaitForChild("CarsShared"):WaitForChild("Strings"))
+
 local Kit = {}
 
+-- FredokaOne has no Cyrillic letters (Roblox would mix in a fallback font), so
+-- Russian uses the heavy Gotham cut; both read as chunky and round.
+local HEADLINE = if Strings.Language == "ru" then Enum.Font.GothamBlack else Enum.Font.FredokaOne
+
 Kit.Theme = {
-	Bg = Color3.fromRGB(14, 17, 26),
-	Panel = Color3.fromRGB(20, 24, 36),
-	PanelAlt = Color3.fromRGB(28, 33, 48),
-	Card = Color3.fromRGB(32, 38, 56),
-	CardHover = Color3.fromRGB(42, 50, 72),
-	Stroke = Color3.fromRGB(255, 255, 255),
-	Accent = Color3.fromRGB(255, 128, 32),
-	Accent2 = Color3.fromRGB(70, 196, 255),
-	Good = Color3.fromRGB(70, 214, 120),
-	Warn = Color3.fromRGB(255, 196, 60),
-	Bad = Color3.fromRGB(255, 76, 76),
-	Text = Color3.fromRGB(240, 242, 248),
-	Muted = Color3.fromRGB(150, 158, 178),
-	Gold = Color3.fromRGB(255, 208, 70),
-	Silver = Color3.fromRGB(205, 212, 224),
-	Bronze = Color3.fromRGB(214, 140, 84),
-	Font = Enum.Font.GothamBold,
-	FontBlack = Enum.Font.GothamBlack,
-	FontMedium = Enum.Font.GothamMedium,
+	Bg = Color3.fromRGB(12, 18, 38),
+	Panel = Color3.fromRGB(30, 42, 82), -- panel bottom
+	PanelTop = Color3.fromRGB(48, 66, 124), -- panel top
+	PanelAlt = Color3.fromRGB(44, 60, 112),
+	Card = Color3.fromRGB(42, 58, 108),
+	CardTop = Color3.fromRGB(58, 78, 142),
+	CardHover = Color3.fromRGB(62, 84, 152),
+	Ink = Color3.fromRGB(10, 14, 32), -- outlines
+	Stroke = Color3.fromRGB(10, 14, 32),
+	Accent = Color3.fromRGB(255, 138, 28),
+	Accent2 = Color3.fromRGB(48, 170, 255),
+	Good = Color3.fromRGB(52, 200, 84),
+	Warn = Color3.fromRGB(255, 194, 36),
+	Bad = Color3.fromRGB(236, 56, 70),
+	Purple = Color3.fromRGB(150, 90, 245),
+	Pink = Color3.fromRGB(240, 80, 170),
+	Teal = Color3.fromRGB(24, 196, 170),
+	Text = Color3.fromRGB(255, 255, 255),
+	Muted = Color3.fromRGB(170, 186, 228),
+	Gold = Color3.fromRGB(255, 212, 56),
+	Silver = Color3.fromRGB(205, 214, 230),
+	Bronze = Color3.fromRGB(222, 140, 80),
+	Disabled = Color3.fromRGB(120, 130, 156),
+	Font = HEADLINE,
+	FontBlack = HEADLINE,
+	FontMedium = Enum.Font.GothamBold,
 }
 local T = Kit.Theme
+
+local WHITE = Color3.new(1, 1, 1)
+local LIP = 5 -- depth of 3D buttons in pixels
 
 -- Kit.new("Frame", { Size = ..., Parent = ... }, { children })
 function Kit.new(className: string, props: { [string]: any }?, children: { Instance }?): any
@@ -19927,12 +20069,24 @@ function Kit.corner(parent: Instance, radius: number?): UICorner
 	return Kit.new("UICorner", { CornerRadius = UDim.new(0, radius or 12), Parent = parent })
 end
 
+-- Border outline around a frame (thick ink by default).
 function Kit.stroke(parent: Instance, color: Color3?, thickness: number?, transparency: number?): UIStroke
 	return Kit.new("UIStroke", {
-		Color = color or T.Stroke,
-		Thickness = thickness or 1,
-		Transparency = transparency or 0.85,
+		Color = color or T.Ink,
+		Thickness = thickness or 2,
+		Transparency = transparency or 0,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = parent,
+	})
+end
+
+-- Outline around the letters of a text object.
+function Kit.outline(parent: Instance, thickness: number?, color: Color3?): UIStroke
+	return Kit.new("UIStroke", {
+		Color = color or T.Ink,
+		Thickness = thickness or 2,
+		Transparency = 0,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
 		Parent = parent,
 	})
 end
@@ -19966,20 +20120,32 @@ function Kit.gradient(parent: Instance, a: Color3, b: Color3, rotation: number?)
 	})
 end
 
--- A dark rounded panel.
+-- Light/dark variants of a colour for gradients and button lips.
+function Kit.shades(color: Color3): (Color3, Color3, Color3)
+	local top = color:Lerp(WHITE, 0.32)
+	local lip = color:Lerp(Color3.new(0, 0, 0), 0.42)
+	return top, color, lip
+end
+
+-- A deep-blue rounded panel with an ink outline.
 function Kit.panel(props: { [string]: any }): Frame
 	local p = table.clone(props)
-	p.BackgroundColor3 = p.BackgroundColor3 or T.Panel
-	p.BackgroundTransparency = p.BackgroundTransparency or 0.08
+	local base = p.BackgroundColor3 or T.Panel
+	p.BackgroundColor3 = WHITE
+	p.BackgroundTransparency = p.BackgroundTransparency or 0.04
 	p.BorderSizePixel = 0
 	local frame = Kit.new("Frame", p)
-	Kit.corner(frame, 14)
-	Kit.stroke(frame)
+	Kit.corner(frame, 16)
+	Kit.stroke(frame, T.Ink, 3, 0)
+	local top = if base == T.Panel then T.PanelTop else base:Lerp(WHITE, 0.18)
+	Kit.gradient(frame, top, base, 90)
 	return frame
 end
 
 function Kit.label(props: { [string]: any }): TextLabel
 	local p = table.clone(props)
+	local outline = p.outline
+	p.outline = nil
 	p.BackgroundTransparency = p.BackgroundTransparency or 1
 	p.Font = p.Font or T.Font
 	p.TextColor3 = p.TextColor3 or T.Text
@@ -19988,39 +20154,134 @@ function Kit.label(props: { [string]: any }): TextLabel
 	if p.TextScaled == nil and p.TextWrapped == nil then
 		p.TextTruncate = p.TextTruncate or Enum.TextTruncate.AtEnd
 	end
-	return Kit.new("TextLabel", p)
+	local maxSize = p.maxTextSize
+	p.maxTextSize = nil
+	local label = Kit.new("TextLabel", p)
+	if outline then
+		Kit.outline(label, if typeof(outline) == "number" then outline else 2)
+	end
+	if maxSize then
+		Kit.new("UITextSizeConstraint", { MaxTextSize = maxSize, Parent = label })
+	end
+	return label
 end
 
--- Button with hover/press animation. `onClick` is connected to Activated.
+-- Paints the face and lip of a 3D button in `color`.
+local function paintButton(button: GuiObject, color: Color3)
+	local face = button:FindFirstChild("Face") :: Frame?
+	local lip = button:FindFirstChild("Lip") :: Frame?
+	local top, mid, dark = Kit.shades(color)
+	if face then
+		local g = face:FindFirstChildOfClass("UIGradient")
+		if g then
+			g.Color = ColorSequence.new(top, mid)
+		end
+	end
+	if lip then
+		lip.BackgroundColor3 = dark
+	end
+end
+
+-- 3D button: gradient face with a glossy highlight over a darker lip and an
+-- ink outline. The TextButton itself only catches input; its Text/TextSize/
+-- TextColor3/Font are mirrored onto the visible label, so callers use it like
+-- a normal TextButton. `onClick` is connected to Activated.
 function Kit.button(props: { [string]: any }): TextButton
 	local p = table.clone(props)
 	local onClick = p.onClick
-	local radius = p.cornerRadius
+	local radius = p.cornerRadius or 12
+	local color = p.BackgroundColor3 or T.Accent
+	local faceTransparency = p.BackgroundTransparency or 0
 	p.onClick = nil
 	p.cornerRadius = nil
-	local color = p.BackgroundColor3 or T.Accent
 	p.BackgroundColor3 = color
+	p.BackgroundTransparency = 1
 	p.AutoButtonColor = false
 	p.Font = p.Font or T.FontBlack
-	p.TextColor3 = p.TextColor3 or Color3.new(1, 1, 1)
-	p.TextSize = p.TextSize or 18
+	p.TextColor3 = p.TextColor3 or WHITE
+	p.TextSize = p.TextSize or 20
+	p.TextTransparency = 1
 	p.BorderSizePixel = 0
 	local button = Kit.new("TextButton", p)
-	Kit.corner(button, radius or 10)
+	button:SetAttribute("BaseColor", color)
+
+	local lip = Kit.new("Frame", {
+		Name = "Lip",
+		Position = UDim2.fromOffset(0, LIP),
+		Size = UDim2.fromScale(1, 1),
+		BorderSizePixel = 0,
+		BackgroundTransparency = faceTransparency,
+		ZIndex = -2,
+		Parent = button,
+	})
+	Kit.corner(lip, radius)
+	Kit.stroke(lip, T.Ink, 2.5, faceTransparency)
+	local face = Kit.new("Frame", {
+		Name = "Face",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = WHITE,
+		BackgroundTransparency = faceTransparency,
+		BorderSizePixel = 0,
+		ZIndex = -1,
+		Parent = button,
+	})
+	Kit.corner(face, radius)
+	Kit.stroke(face, T.Ink, 2.5, faceTransparency)
+	Kit.new("UIGradient", { Rotation = 90, Parent = face })
+	local shine = Kit.new("Frame", {
+		Name = "Shine",
+		Position = UDim2.new(0, 4, 0, 3),
+		Size = UDim2.new(1, -8, 0.42, 0),
+		BackgroundColor3 = WHITE,
+		BackgroundTransparency = if faceTransparency > 0.5 then 1 else 0.72,
+		BorderSizePixel = 0,
+		Parent = face,
+	})
+	Kit.corner(shine, math.max(2, radius - 3))
+	Kit.new("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(0.1, 1), Parent = shine })
+	local label = Kit.new("TextLabel", {
+		Name = "Label",
+		Position = UDim2.fromOffset(6, 0),
+		Size = UDim2.new(1, -12, 1, 0),
+		BackgroundTransparency = 1,
+		Text = button.Text,
+		TextSize = button.TextSize,
+		TextColor3 = button.TextColor3,
+		Font = button.Font,
+		TextScaled = button.TextScaled,
+		TextWrapped = button.TextWrapped,
+		TextXAlignment = button.TextXAlignment,
+		Parent = face,
+	})
+	Kit.outline(label, 2)
+	paintButton(button, color)
+	for _, prop in { "Text", "TextSize", "TextColor3", "Font", "TextScaled", "TextWrapped", "TextXAlignment" } do
+		button:GetPropertyChangedSignal(prop):Connect(function()
+			(label :: any)[prop] = (button :: any)[prop]
+		end)
+	end
+	button:GetPropertyChangedSignal("BackgroundColor3"):Connect(function()
+		paintButton(button, button.BackgroundColor3)
+	end)
+
+	-- hover grows a little, pressing sinks the face into the lip
 	local scale = Kit.new("UIScale", { Parent = button })
-	local hoverColor = color:Lerp(Color3.new(1, 1, 1), 0.12)
+	local function sink(down: boolean)
+		local y = if down then LIP - 1 else 0
+		TweenService:Create(face, TweenInfo.new(0.06), { Position = UDim2.fromOffset(0, y) }):Play()
+	end
 	button.MouseEnter:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.12), { BackgroundColor3 = hoverColor }):Play()
+		TweenService:Create(scale, TweenInfo.new(0.12, Enum.EasingStyle.Back), { Scale = 1.04 }):Play()
 	end)
 	button.MouseLeave:Connect(function()
-		TweenService:Create(button, TweenInfo.new(0.12), { BackgroundColor3 = button:GetAttribute("BaseColor") or color }):Play()
-		TweenService:Create(scale, TweenInfo.new(0.1), { Scale = 1 }):Play()
+		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1 }):Play()
+		sink(false)
 	end)
 	button.MouseButton1Down:Connect(function()
-		TweenService:Create(scale, TweenInfo.new(0.06), { Scale = 0.95 }):Play()
+		sink(true)
 	end)
 	button.MouseButton1Up:Connect(function()
-		TweenService:Create(scale, TweenInfo.new(0.1, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+		sink(false)
 	end)
 	if onClick then
 		button.Activated:Connect(onClick)
@@ -20028,9 +20289,49 @@ function Kit.button(props: { [string]: any }): TextButton
 	return button
 end
 
--- Big square icon button drawn from frames: drop shadow, gradient body, glossy
--- top highlight, emoji icon, caption and a red badge. `pulse(on)` makes it
--- bounce to ask for attention.
+-- Changes a Kit.button's colour.
+function Kit.setButtonColor(button: TextButton, color: Color3)
+	button:SetAttribute("BaseColor", color)
+	button.BackgroundColor3 = color
+	paintButton(button, color)
+end
+
+-- A drawn gold coin with a "$" (used next to every price).
+function Kit.coin(parent: Instance, size: number, props: { [string]: any }?): Frame
+	local p = table.clone(props or {})
+	p.Size = p.Size or UDim2.fromOffset(size, size)
+	p.BackgroundColor3 = WHITE
+	p.BorderSizePixel = 0
+	p.Parent = parent
+	local coin = Kit.new("Frame", p)
+	coin.Name = p.Name or "Coin"
+	Kit.corner(coin, size)
+	Kit.stroke(coin, T.Ink, math.max(2, size / 14), 0)
+	Kit.gradient(coin, Color3.fromRGB(255, 236, 120), Color3.fromRGB(240, 160, 20), 90)
+	local inner = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(0.7, 0.7),
+		BackgroundColor3 = Color3.fromRGB(255, 196, 40),
+		BorderSizePixel = 0,
+		Parent = coin,
+	})
+	Kit.corner(inner, size)
+	Kit.stroke(inner, Color3.fromRGB(200, 120, 0), math.max(1, size / 24), 0.2)
+	Kit.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "$",
+		TextScaled = true,
+		TextColor3 = WHITE,
+		outline = math.max(1, size / 18),
+		Parent = inner,
+	})
+	return coin
+end
+
+-- Big square tile for the side rail: drop shadow, lip, gradient face with a
+-- glossy top, a large emoji icon, the caption on a ribbon over the bottom edge
+-- and a red badge. `setPulse(true)` makes the icon wiggle for attention.
 export type BigButton = {
 	root: Frame,
 	button: TextButton,
@@ -20052,105 +20353,121 @@ function Kit.bigButton(props: {
 	name: string?,
 }): BigButton
 	local size = props.size or 78
+	local radius = math.floor(size * 0.24)
 	local root = Kit.new("Frame", {
 		Name = props.name or "BigButton",
-		Size = UDim2.fromOffset(size, size + 4),
+		Size = UDim2.fromOffset(size, size + LIP + 8),
 		BackgroundTransparency = 1,
 		LayoutOrder = props.layoutOrder or 0,
 		Parent = props.parent,
 	})
-	local shadow = Kit.new("Frame", {
-		Position = UDim2.fromOffset(0, 5),
+	local lip = Kit.new("Frame", {
+		Name = "Lip",
+		Position = UDim2.fromOffset(0, LIP),
 		Size = UDim2.fromOffset(size, size),
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 0.55,
 		BorderSizePixel = 0,
 		Parent = root,
 	})
-	Kit.corner(shadow, math.floor(size * 0.26))
+	Kit.corner(lip, radius)
+	Kit.stroke(lip, T.Ink, 3, 0)
 	local button = Kit.new("TextButton", {
 		Name = "Button",
 		Size = UDim2.fromOffset(size, size),
-		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundColor3 = WHITE,
 		AutoButtonColor = false,
 		Text = "",
 		BorderSizePixel = 0,
 		Parent = root,
 	})
-	Kit.corner(button, math.floor(size * 0.26))
+	Kit.corner(button, radius)
+	Kit.stroke(button, T.Ink, 3, 0)
 	local gradient = Kit.new("UIGradient", { Rotation = 90, Parent = button })
-	local stroke = Kit.stroke(button, Color3.new(1, 1, 1), 2.5, 0.55)
-	local function setColor(color: Color3)
-		gradient.Color = ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.28), color:Lerp(Color3.new(0, 0, 0), 0.22))
-		stroke.Color = color:Lerp(Color3.new(1, 1, 1), 0.6)
-	end
-	setColor(props.color)
-	-- glossy highlight on the upper half
 	local shine = Kit.new("Frame", {
 		Position = UDim2.new(0, 5, 0, 4),
-		Size = UDim2.new(1, -10, 0.42, 0),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.78,
+		Size = UDim2.new(1, -10, 0.45, 0),
+		BackgroundColor3 = WHITE,
+		BackgroundTransparency = 0.68,
 		BorderSizePixel = 0,
 		Parent = button,
 	})
-	Kit.corner(shine, math.floor(size * 0.2))
-	Kit.new("UIGradient", {
-		Rotation = 90,
-		Transparency = NumberSequence.new(0.2, 1),
-		Parent = shine,
+	Kit.corner(shine, radius - 4)
+	Kit.new("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(0, 1), Parent = shine })
+	local function setColor(color: Color3)
+		local top, mid, dark = Kit.shades(color)
+		gradient.Color = ColorSequence.new(top, mid)
+		lip.BackgroundColor3 = dark
+	end
+	setColor(props.color)
+	-- icon with a soft drop shadow
+	local iconSize = math.floor(size * 0.5)
+	Kit.label({
+		Name = "IconShadow",
+		Position = UDim2.new(0, 2, 0, size * 0.1 + 3),
+		Size = UDim2.new(1, 0, 0, size * 0.56),
+		Text = props.icon,
+		TextSize = iconSize,
+		TextColor3 = Color3.new(0, 0, 0),
+		TextTransparency = 0.75,
+		TextTruncate = Enum.TextTruncate.None,
+		Parent = button,
 	})
 	local icon = Kit.label({
 		Name = "Icon",
-		Position = UDim2.new(0, 0, 0, size * 0.08),
-		Size = UDim2.new(1, 0, 0, size * 0.55),
+		Position = UDim2.new(0, 0, 0, size * 0.1),
+		Size = UDim2.new(1, 0, 0, size * 0.56),
 		Text = props.icon,
-		TextSize = math.floor(size * 0.46),
-		Font = T.FontBlack,
+		TextSize = iconSize,
 		TextTruncate = Enum.TextTruncate.None,
 		Parent = button,
 	})
 	local caption = Kit.label({
 		Name = "Caption",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -5),
-		Size = UDim2.new(1, -6, 0, size * 0.22),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 1, -size * 0.12),
+		Size = UDim2.new(1, 10, 0, size * 0.27),
 		Text = props.caption,
 		TextScaled = true,
 		Font = T.FontBlack,
-		TextStrokeTransparency = 0.45,
+		outline = 2,
 		Parent = button,
 	})
 	local badge = Kit.new("Frame", {
 		Name = "Badge",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(1, -6, 0, 6),
-		Size = UDim2.fromOffset(26, 26),
-		BackgroundColor3 = T.Bad,
+		Position = UDim2.new(1, -4, 0, 4),
+		Size = UDim2.fromOffset(28, 28),
+		BackgroundColor3 = WHITE,
 		BorderSizePixel = 0,
 		Visible = false,
 		ZIndex = 3,
 		Parent = root,
 	})
-	Kit.corner(badge, 13)
-	Kit.stroke(badge, Color3.new(1, 1, 1), 2, 0)
-	local badgeText = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "", TextSize = 15, Font = T.FontBlack, ZIndex = 4, Parent = badge })
+	Kit.corner(badge, 14)
+	Kit.stroke(badge, T.Ink, 2.5, 0)
+	Kit.gradient(badge, Color3.fromRGB(255, 110, 110), T.Bad, 90)
+	local badgeText = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "", TextSize = 16, ZIndex = 4, outline = 1.5, Parent = badge })
 
-	local scale = Kit.new("UIScale", { Parent = button })
+	local scale = Kit.new("UIScale", { Parent = root })
 	local hovered = false
+	local function sink(down: boolean)
+		local y = if down then LIP - 1 else 0
+		Kit.tween(button, 0.06, { Position = UDim2.fromOffset(0, y) })
+	end
 	button.MouseEnter:Connect(function()
 		hovered = true
-		Kit.tween(scale, 0.12, { Scale = 1.07 }, Enum.EasingStyle.Back)
+		Kit.tween(scale, 0.12, { Scale = 1.06 }, Enum.EasingStyle.Back)
 	end)
 	button.MouseLeave:Connect(function()
 		hovered = false
 		Kit.tween(scale, 0.12, { Scale = 1 })
+		sink(false)
 	end)
 	button.MouseButton1Down:Connect(function()
-		Kit.tween(scale, 0.06, { Scale = 0.92 })
+		sink(true)
 	end)
 	button.MouseButton1Up:Connect(function()
-		Kit.tween(scale, 0.18, { Scale = if hovered then 1.07 else 1 }, Enum.EasingStyle.Back)
+		sink(false)
+		Kit.tween(scale, 0.18, { Scale = if hovered then 1.06 else 1 }, Enum.EasingStyle.Back)
 	end)
 	if props.onClick then
 		button.Activated:Connect(props.onClick)
@@ -20165,17 +20482,17 @@ function Kit.bigButton(props: {
 		if on then
 			task.spawn(function()
 				while pulsing and root.Parent do
-					Kit.tween(icon, 0.35, { Rotation = 12, TextSize = math.floor(size * 0.52) }, Enum.EasingStyle.Sine)
-					task.wait(0.35)
-					Kit.tween(icon, 0.35, { Rotation = -12 }, Enum.EasingStyle.Sine)
-					task.wait(0.35)
-					Kit.tween(icon, 0.3, { Rotation = 0, TextSize = math.floor(size * 0.46) }, Enum.EasingStyle.Sine)
+					Kit.tween(icon, 0.3, { Rotation = 14, TextSize = math.floor(size * 0.58) }, Enum.EasingStyle.Sine)
+					task.wait(0.3)
+					Kit.tween(icon, 0.3, { Rotation = -14 }, Enum.EasingStyle.Sine)
+					task.wait(0.3)
+					Kit.tween(icon, 0.25, { Rotation = 0, TextSize = iconSize }, Enum.EasingStyle.Sine)
 					task.wait(0.9)
 				end
 			end)
 		else
 			icon.Rotation = 0
-			icon.TextSize = math.floor(size * 0.46)
+			icon.TextSize = iconSize
 		end
 	end
 	local function setBadge(count: number?)
@@ -20193,32 +20510,84 @@ function Kit.bigButton(props: {
 	}
 end
 
+-- A card inside a panel: lighter blue gradient, rounded, ink outline.
+function Kit.card(props: { [string]: any }): Frame
+	local p = table.clone(props)
+	local base = p.BackgroundColor3 or T.Card
+	p.BackgroundColor3 = WHITE
+	p.BorderSizePixel = 0
+	local frame = Kit.new("Frame", p)
+	Kit.corner(frame, 16)
+	Kit.stroke(frame, T.Ink, 2.5, 0)
+	local top = if base == T.Card then T.CardTop else base:Lerp(WHITE, 0.25)
+	Kit.gradient(frame, top, base, 90)
+	return frame
+end
+
+-- A rounded colour tile with an emoji on it (icons on cards and windows).
+function Kit.iconTile(parent: Instance, icon: string, color: Color3, size: number, props: { [string]: any }?): Frame
+	local p = table.clone(props or {})
+	p.Size = p.Size or UDim2.fromOffset(size, size)
+	p.BackgroundColor3 = WHITE
+	p.BorderSizePixel = 0
+	p.Parent = parent
+	local tile = Kit.new("Frame", p)
+	Kit.corner(tile, math.floor(size * 0.28))
+	Kit.stroke(tile, T.Ink, math.max(2, size / 24), 0)
+	local top, mid = Kit.shades(color)
+	Kit.gradient(tile, top, mid, 90)
+	local shine = Kit.new("Frame", {
+		Position = UDim2.new(0, 3, 0, 3),
+		Size = UDim2.new(1, -6, 0.45, 0),
+		BackgroundColor3 = WHITE,
+		BackgroundTransparency = 0.72,
+		BorderSizePixel = 0,
+		Parent = tile,
+	})
+	Kit.corner(shine, math.floor(size * 0.22))
+	Kit.new("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(0, 1), Parent = shine })
+	Kit.label({
+		Name = "Icon",
+		Size = UDim2.fromScale(1, 1),
+		Text = icon,
+		TextSize = math.floor(size * 0.58),
+		TextTruncate = Enum.TextTruncate.None,
+		Parent = tile,
+	})
+	return tile
+end
+
 -- A small rounded "pill" with an emoji and text (used on cards).
 function Kit.pill(parent: Instance, text: string, color: Color3, order: number?): TextLabel
 	local pill = Kit.label({
-		Size = UDim2.fromOffset(0, 26),
+		Size = UDim2.fromOffset(0, 28),
 		AutomaticSize = Enum.AutomaticSize.X,
 		BackgroundColor3 = color,
-		BackgroundTransparency = 0.15,
+		BackgroundTransparency = 0,
 		Text = text,
-		TextSize = 15,
+		TextSize = 16,
 		Font = T.FontBlack,
 		TextTruncate = Enum.TextTruncate.None,
 		LayoutOrder = order or 0,
+		outline = 1.5,
 		Parent = parent,
 	})
-	Kit.corner(pill, 13)
+	Kit.corner(pill, 14)
 	Kit.padding(pill, 10, 0)
+	local top = color:Lerp(WHITE, 0.25)
+	Kit.gradient(pill, top, color, 90)
 	return pill
 end
 
--- Modal window with a dimmed backdrop, a title bar and a close button.
--- Returns the window frame, its content frame and an open/close function.
+-- Modal window: dimmed backdrop, deep-blue body with an ink outline, a
+-- coloured header ribbon with the title and a red 3D close button sitting on
+-- the corner. Returns the window, its content frame and an open/close function.
 function Kit.modal(gui: Instance, name: string, title: string, size: Vector2, accent: Color3?): (Frame, Frame, (open: boolean) -> ())
+	local color = accent or T.Accent
 	local dim = Kit.new("TextButton", {
 		Name = name .. "Dim",
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundColor3 = Color3.fromRGB(4, 8, 20),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Text = "",
@@ -20226,50 +20595,61 @@ function Kit.modal(gui: Instance, name: string, title: string, size: Vector2, ac
 		ZIndex = 20,
 		Parent = gui,
 	})
-	local window = Kit.panel({
+	local window = Kit.new("Frame", {
 		Name = name,
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.52),
 		Size = UDim2.fromOffset(size.X, size.Y),
-		BackgroundTransparency = 0.02,
+		BackgroundColor3 = WHITE,
+		BorderSizePixel = 0,
 		ZIndex = 21,
 		Visible = false,
 		Parent = gui,
 	})
+	Kit.corner(window, 22)
+	Kit.stroke(window, T.Ink, 4, 0)
+	Kit.gradient(window, T.PanelTop, T.Panel, 90)
 	local scale = Kit.new("UIScale", { Parent = window })
+	-- header ribbon
 	local header = Kit.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 64),
-		BackgroundColor3 = accent or T.Accent,
+		Name = "Header",
+		Position = UDim2.fromOffset(10, 10),
+		Size = UDim2.new(1, -20, 0, 62),
+		BackgroundColor3 = WHITE,
 		BorderSizePixel = 0,
 		ZIndex = 22,
 		Parent = window,
 	})
-	Kit.corner(header, 14)
-	Kit.gradient(header, Color3.new(1, 1, 1), Color3.fromRGB(200, 200, 210), 90)
-	Kit.new("Frame", { -- square off the header's bottom corners
-		Position = UDim2.new(0, 0, 1, -14),
-		Size = UDim2.new(1, 0, 0, 14),
-		BackgroundColor3 = accent or T.Accent,
+	Kit.corner(header, 16)
+	Kit.stroke(header, T.Ink, 3, 0)
+	local top, mid = Kit.shades(color)
+	Kit.gradient(header, top, mid, 90)
+	local headerShine = Kit.new("Frame", {
+		Position = UDim2.new(0, 6, 0, 4),
+		Size = UDim2.new(1, -12, 0.45, 0),
+		BackgroundColor3 = WHITE,
+		BackgroundTransparency = 0.75,
 		BorderSizePixel = 0,
-		ZIndex = 22,
 		Parent = header,
 	})
+	Kit.corner(headerShine, 12)
+	Kit.new("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(0, 1), Parent = headerShine })
 	Kit.label({
-		Position = UDim2.fromOffset(22, 0),
+		Name = "Title",
+		Position = UDim2.fromOffset(20, 0),
 		Size = UDim2.new(1, -100, 1, 0),
 		Text = title,
-		TextSize = 30,
+		TextSize = 34,
 		Font = T.FontBlack,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextStrokeTransparency = 0.6,
+		outline = 3,
 		ZIndex = 23,
-		Name = "Title",
 		Parent = header,
 	})
 	local content = Kit.new("Frame", {
 		Name = "Content",
-		Position = UDim2.fromOffset(0, 64),
-		Size = UDim2.new(1, 0, 1, -64),
+		Position = UDim2.fromOffset(0, 80),
+		Size = UDim2.new(1, 0, 1, -80),
 		BackgroundTransparency = 1,
 		ZIndex = 22,
 		Parent = window,
@@ -20283,12 +20663,12 @@ function Kit.modal(gui: Instance, name: string, title: string, size: Vector2, ac
 		if open then
 			dim.Visible = true
 			window.Visible = true
-			scale.Scale = 0.85
-			Kit.tween(dim, 0.2, { BackgroundTransparency = 0.45 })
-			Kit.tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
+			scale.Scale = 0.8
+			Kit.tween(dim, 0.2, { BackgroundTransparency = 0.4 })
+			Kit.tween(scale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
 		else
 			Kit.tween(dim, 0.15, { BackgroundTransparency = 1 })
-			Kit.tween(scale, 0.15, { Scale = 0.9 })
+			Kit.tween(scale, 0.15, { Scale = 0.85 })
 			task.delay(0.15, function()
 				if not isOpen then
 					dim.Visible = false
@@ -20297,50 +20677,46 @@ function Kit.modal(gui: Instance, name: string, title: string, size: Vector2, ac
 			end)
 		end
 	end
-	local close = Kit.button({
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -14, 0.5, 0),
-		Size = UDim2.fromOffset(46, 46),
-		Text = "✕",
-		TextSize = 24,
-		BackgroundColor3 = Color3.fromRGB(30, 34, 48),
-		cornerRadius = 23,
-		ZIndex = 24,
+	Kit.button({
+		Name = "Close",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(1, -8, 0, 8),
+		Size = UDim2.fromOffset(54, 50),
+		Text = "✖",
+		TextSize = 26,
+		BackgroundColor3 = T.Bad,
+		cornerRadius = 14,
+		ZIndex = 30,
 		onClick = function()
 			setOpen(false)
 		end,
-		Parent = header,
+		Parent = window,
 	})
-	close.Name = "Close"
 	dim.Activated:Connect(function()
 		setOpen(false)
 	end)
 	return window, content, setOpen
 end
 
--- Changes a Kit.button's base color (keeps hover behaviour right).
-function Kit.setButtonColor(button: TextButton, color: Color3)
-	button:SetAttribute("BaseColor", color)
-	button.BackgroundColor3 = color
-end
-
--- Horizontal stat bar 0..10.
+-- Horizontal stat bar 0..10 with an ink outline.
 function Kit.bar(parent: Instance, color: Color3?): (Frame, (value: number) -> ())
 	local back = Kit.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 8),
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = 0.88,
+		Size = UDim2.new(1, 0, 0, 12),
+		BackgroundColor3 = Color3.fromRGB(18, 26, 52),
 		BorderSizePixel = 0,
 		Parent = parent,
 	})
-	Kit.corner(back, 4)
+	Kit.corner(back, 6)
+	Kit.stroke(back, T.Ink, 2, 0)
 	local fill = Kit.new("Frame", {
 		Size = UDim2.fromScale(0, 1),
-		BackgroundColor3 = color or T.Accent,
+		BackgroundColor3 = WHITE,
 		BorderSizePixel = 0,
 		Parent = back,
 	})
-	Kit.corner(fill, 4)
+	Kit.corner(fill, 6)
+	local c = color or T.Accent
+	Kit.gradient(fill, c:Lerp(WHITE, 0.3), c, 90)
 	local function set(value: number)
 		TweenService:Create(fill, TweenInfo.new(0.25, Enum.EasingStyle.Quad), { Size = UDim2.fromScale(math.clamp(value / 10, 0, 1), 1) })
 			:Play()
@@ -20393,11 +20769,80 @@ return Kit
 ]]></string>
             </Properties>
           </Item>
+          <Item class="ModuleScript" referent="67">
+            <Properties>
+              <string name="Name">Rail</string>
+              <string name="Source"><![CDATA[-- Rail: the grid of big drawn tiles on the left side of the screen (service,
+-- orders, work, business, garage, daily...). Any controller can add a tile;
+-- tiles are sorted by `layoutOrder`.
+
+local Kit = require(script.Parent.Kit)
+
+local Rail = {}
+
+local gui: ScreenGui? = nil
+local grid: Frame? = nil
+
+local function ensure(): Frame
+	if grid then
+		return grid
+	end
+	local screen = Kit.screen("CarsRail", 5)
+	gui = screen
+	local frame = Kit.new("Frame", {
+		Name = "Rail",
+		Position = UDim2.fromOffset(18, 146),
+		Size = UDim2.fromOffset(184, 420),
+		BackgroundTransparency = 1,
+		Parent = screen,
+	})
+	Kit.new("UIGridLayout", {
+		CellSize = UDim2.fromOffset(80, 96),
+		CellPadding = UDim2.fromOffset(14, 6),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = frame,
+	})
+	grid = frame
+	return frame
+end
+
+function Rail.add(props: {
+	icon: string,
+	caption: string,
+	color: Color3,
+	onClick: (() -> ())?,
+	layoutOrder: number?,
+	name: string?,
+}): Kit.BigButton
+	return Kit.bigButton({
+		icon = props.icon,
+		caption = props.caption,
+		color = props.color,
+		size = 80,
+		onClick = props.onClick,
+		layoutOrder = props.layoutOrder,
+		name = props.name,
+		parent = ensure(),
+	})
+end
+
+-- Hides the whole rail (e.g. while working in a bay).
+function Rail.setVisible(visible: boolean)
+	ensure()
+	if gui then
+		gui.Enabled = visible
+	end
+end
+
+return Rail
+]]></string>
+            </Properties>
+          </Item>
         </Item>
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="67">
+  <Item class="Workspace" referent="68">
     <Properties>
       <string name="Name">Workspace</string>
       <float name="Gravity">196.2</float>

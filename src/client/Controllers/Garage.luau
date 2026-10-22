@@ -301,29 +301,28 @@ local function drawPaint()
 	else
 		local list = Kit.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = area })
 		Kit.new("UIGridLayout", {
-			CellSize = UDim2.new(0, 40, 0, 40),
-			CellPadding = UDim2.new(0, 7, 0, 7),
+			CellSize = UDim2.new(0, 42, 0, 42),
+			CellPadding = UDim2.new(0, 8, 0, 12),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			Parent = list,
 		})
 		if paintSlot == "glow" then
-			local off = Kit.button({
+			Kit.button({
 				Text = Strings.get("GlowOff"),
 				TextSize = 11,
 				LayoutOrder = 0,
-				BackgroundColor3 = T.Card,
+				BackgroundColor3 = if save and save.glow == 0 then T.Accent else T.Card,
 				onClick = function()
 					apply(0)
 				end,
 				Parent = list,
 			})
-			if save and save.glow == 0 then
-				Kit.stroke(off, T.Accent, 3, 0)
-			end
 		end
 		for i, swatch in Paints.Palette do
-			local b = Kit.button({
-				Text = "",
+			local current = save and (save :: any)[paintSlot] == i
+			Kit.button({
+				Text = if current then "✔" else "",
+				TextSize = 20,
 				LayoutOrder = i,
 				BackgroundColor3 = swatch.color,
 				cornerRadius = 20,
@@ -332,17 +331,15 @@ local function drawPaint()
 				end,
 				Parent = list,
 			})
-			local current = save and (save :: any)[paintSlot] == i
-			Kit.stroke(b, if current then Color3.new(1, 1, 1) else Color3.new(0, 0, 0), if current then 3 else 1, if current then 0 else 0.6)
 		end
 		priceLabel.Text = Strings.get("PriceEach", Format.money(slotPrice(paintSlot, 1, save)))
 	end
 end
 
 local UPGRADES = {
-	{ kind = "Engine", field = "engine", title = "UpgradeEngine", desc = "UpgradeEngineDesc", color = T.Accent },
-	{ kind = "Tires", field = "tires", title = "UpgradeTires", desc = "UpgradeTiresDesc", color = T.Accent2 },
-	{ kind = "Nitro", field = "nitro", title = "UpgradeNitro", desc = "UpgradeNitroDesc", color = Color3.fromRGB(170, 100, 255) },
+	{ kind = "Engine", field = "engine", title = "UpgradeEngine", desc = "UpgradeEngineDesc", color = T.Accent, icon = "⚙️" },
+	{ kind = "Tires", field = "tires", title = "UpgradeTires", desc = "UpgradeTiresDesc", color = T.Accent2, icon = "⚫" },
+	{ kind = "Nitro", field = "nitro", title = "UpgradeNitro", desc = "UpgradeNitroDesc", color = T.Purple, icon = "🔥" },
 }
 
 local function drawTuning()
@@ -360,57 +357,58 @@ local function drawTuning()
 	for i, u in UPGRADES do
 		local spec = (Config.Upgrades :: any)[u.kind]
 		local level = if save then (save :: any)[u.field] else 0
-		local row = Kit.new("Frame", {
-			Size = UDim2.new(1, 0, 0, 62),
-			BackgroundColor3 = T.Card,
-			BorderSizePixel = 0,
+		local row = Kit.card({
+			Size = UDim2.new(1, 0, 0, 66),
 			LayoutOrder = i,
 			Parent = list,
 		})
-		Kit.corner(row, 10)
+		Kit.iconTile(row, u.icon, u.color, 46, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 10, 0.5, 0) })
 		Kit.label({
-			Position = UDim2.new(0, 14, 0, 8),
-			Size = UDim2.new(0, 220, 0, 22),
+			Position = UDim2.new(0, 66, 0, 8),
+			Size = UDim2.new(0, 190, 0, 24),
 			Text = Strings.get(u.title),
-			TextSize = 18,
+			TextSize = 20,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 2,
 			Parent = row,
 		})
 		Kit.label({
-			Position = UDim2.new(0, 14, 0, 32),
-			Size = UDim2.new(0, 230, 0, 18),
+			Position = UDim2.new(0, 66, 0, 34),
+			Size = UDim2.new(0, 218, 0, 18),
 			Text = Strings.get(u.desc),
 			TextSize = 13,
+			Font = T.FontMedium,
 			TextColor3 = T.Muted,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = row,
 		})
 		local pips = Kit.new("Frame", {
-			Position = UDim2.new(0, 250, 0.5, -8),
-			Size = UDim2.new(0, 130, 0, 16),
+			Position = UDim2.new(0, 290, 0.5, -7),
+			Size = UDim2.new(0, 120, 0, 14),
 			BackgroundTransparency = 1,
 			Parent = row,
 		})
 		Kit.list(pips, Enum.FillDirection.Horizontal, 4)
 		for k = 1, spec.MaxLevel do
 			local pip = Kit.new("Frame", {
-				Size = UDim2.new(0, 22, 1, 0),
-				BackgroundColor3 = if k <= level then u.color else Color3.fromRGB(70, 76, 96),
+				Size = UDim2.new(0, 20, 1, 0),
+				BackgroundColor3 = if k <= level then u.color else Color3.fromRGB(20, 30, 62),
 				BorderSizePixel = 0,
 				LayoutOrder = k,
 				Parent = pips,
 			})
-			Kit.corner(pip, 4)
+			Kit.corner(pip, 7)
+			Kit.stroke(pip, T.Ink, 2, 0)
 		end
 		local maxed = level >= spec.MaxLevel
 		local price = if maxed then 0 else CarCatalog.getUpgradePrice(def, u.kind, level + 1)
 		Kit.button({
 			AnchorPoint = Vector2.new(1, 0.5),
-			Position = UDim2.new(1, -12, 0.5, 0),
-			Size = UDim2.new(0, 170, 0, 40),
-			Text = if maxed then Strings.get("MaxLevel") else Strings.get("Upgrade", Format.money(price :: number)),
-			TextSize = 15,
-			BackgroundColor3 = if maxed then T.PanelAlt else T.Good,
+			Position = UDim2.new(1, -12, 0.5, -2),
+			Size = UDim2.new(0, 150, 0, 40),
+			Text = if maxed then "✔ " .. Strings.get("MaxLevel") else "💰 " .. Format.money(price :: number),
+			TextSize = 19,
+			BackgroundColor3 = if maxed then T.Disabled else T.Good,
 			onClick = function()
 				if not maxed then
 					task.spawn(request, "BuyUpgrade", def.id, u.kind)
@@ -471,21 +469,20 @@ local function styleCard(id: string)
 	end
 	local stroke = card:FindFirstChildOfClass("UIStroke")
 	if stroke then
-		stroke.Color = if id == selectedId then T.Accent else Color3.new(1, 1, 1)
-		stroke.Transparency = if id == selectedId then 0 else 0.88
-		stroke.Thickness = if id == selectedId then 2 else 1
+		stroke.Color = if id == selectedId then T.Accent else T.Ink
+		stroke.Thickness = if id == selectedId then 4 else 2.5
 	end
 	local def = CarCatalog.get(id)
 	local status = card:FindFirstChild("Status") :: TextLabel?
 	if def and status then
 		if owned(id) then
 			local p = profile()
-			status.Text = if p and p.selected == id then "✓ " .. Strings.get("Owned") else Strings.get("Owned")
-			status.TextColor3 = T.Good
+			status.Text = if p and p.selected == id then "✔ " .. Strings.get("Owned") else Strings.get("Owned")
+			status.TextColor3 = Color3.fromRGB(120, 245, 140)
 		else
 			status.Text = if def.price == 0 then Strings.get("Free") else Format.money(def.price)
 			local p = profile()
-			status.TextColor3 = if p and p.cash >= def.price then T.Gold else T.Muted
+			status.TextColor3 = if p and p.cash >= def.price then T.Gold else Color3.fromRGB(255, 130, 130)
 		end
 	end
 end
@@ -513,49 +510,47 @@ local function buildCards()
 			continue
 		end
 		local class = CarCatalog.getClass(def.class)
-		local card = Kit.new("Frame", {
+		local card = Kit.card({
 			Name = def.id,
-			BackgroundColor3 = T.Card,
-			BorderSizePixel = 0,
 			LayoutOrder = i,
 			Parent = grid,
 		})
-		Kit.corner(card, 10)
-		Kit.stroke(card)
 		local strip = Kit.new("Frame", {
-			Size = UDim2.new(0, 6, 1, -16),
-			Position = UDim2.new(0, 8, 0, 8),
+			Size = UDim2.new(0, 8, 1, -18),
+			Position = UDim2.new(0, 9, 0, 9),
 			BackgroundColor3 = class.color,
 			BorderSizePixel = 0,
 			Parent = card,
 		})
-		Kit.corner(strip, 3)
+		Kit.corner(strip, 4)
+		Kit.stroke(strip, T.Ink, 2, 0)
 		Kit.label({
-			Position = UDim2.new(0, 22, 0, 10),
-			Size = UDim2.new(1, -30, 0, 24),
+			Position = UDim2.new(0, 26, 0, 8),
+			Size = UDim2.new(1, -34, 0, 26),
 			Text = def.name,
-			TextSize = 19,
-			Font = T.FontBlack,
+			TextSize = 21,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 2,
 			Parent = card,
 		})
 		Kit.label({
-			Position = UDim2.new(0, 22, 0, 34),
-			Size = UDim2.new(1, -30, 0, 18),
+			Position = UDim2.new(0, 26, 0, 34),
+			Size = UDim2.new(1, -34, 0, 18),
 			Text = Strings.pick(class.name),
-			TextSize = 13,
+			TextSize = 14,
 			TextColor3 = class.color,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 1.5,
 			Parent = card,
 		})
 		Kit.label({
 			Name = "Status",
-			Position = UDim2.new(0, 22, 1, -30),
-			Size = UDim2.new(0.6, 0, 0, 22),
+			Position = UDim2.new(0, 26, 1, -32),
+			Size = UDim2.new(0.6, 0, 0, 24),
 			Text = "",
-			TextSize = 16,
-			Font = T.FontBlack,
+			TextSize = 19,
 			TextXAlignment = Enum.TextXAlignment.Left,
+			outline = 2,
 			Parent = card,
 		})
 		local stats = CarCatalog.getEffectiveStats(def, nil)
@@ -575,11 +570,12 @@ local function buildCards()
 			ZIndex = 5,
 			Parent = card,
 		})
+		local hover = Kit.new("UIScale", { Parent = card })
 		hit.MouseEnter:Connect(function()
-			Kit.tween(card, 0.1, { BackgroundColor3 = T.CardHover })
+			Kit.tween(hover, 0.1, { Scale = 1.03 }, Enum.EasingStyle.Back)
 		end)
 		hit.MouseLeave:Connect(function()
-			Kit.tween(card, 0.1, { BackgroundColor3 = T.Card })
+			Kit.tween(hover, 0.1, { Scale = 1 })
 		end)
 		hit.Activated:Connect(function()
 			selectCar(def.id)
@@ -596,12 +592,12 @@ local function buildChips()
 	end
 	for i, e in entries do
 		local chip = Kit.button({
-			Size = UDim2.new(0, 0, 1, 0),
+			Size = UDim2.new(0, 0, 1, -8),
 			AutomaticSize = Enum.AutomaticSize.X,
 			Text = "  " .. e.name .. "  ",
-			TextSize = 14,
-			Font = T.Font,
+			TextSize = 15,
 			LayoutOrder = i,
+			cornerRadius = 10,
 			BackgroundColor3 = if e.id == classFilter then T.Accent else T.Card,
 			onClick = function()
 				classFilter = e.id
@@ -615,7 +611,7 @@ local function buildChips()
 			Parent = chips,
 		})
 		chip:SetAttribute("ClassId", e.id)
-		chip.TextColor3 = if e.id then e.color else T.Text
+		chip.TextColor3 = if e.id then e.color:Lerp(Color3.new(1, 1, 1), 0.35) else T.Text
 	end
 end
 
@@ -629,8 +625,8 @@ local function buildWindow()
 	Kit.new("TextButton", {
 		Name = "Backdrop",
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 0.45,
+		BackgroundColor3 = Color3.fromRGB(4, 8, 20),
+		BackgroundTransparency = 0.4,
 		Text = "",
 		AutoButtonColor = false,
 		Parent = gui,
@@ -640,28 +636,42 @@ local function buildWindow()
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.new(0, 1180, 0, 700),
-		BackgroundColor3 = T.Bg,
-		BackgroundTransparency = 0.04,
 		Parent = gui,
 	})
-	-- header
-	Kit.label({
-		Position = UDim2.new(0, 22, 0, 12),
-		Size = UDim2.new(0, 300, 0, 40),
-		Text = Strings.get("GarageTitle"),
-		Font = T.FontBlack,
-		TextSize = 32,
-		TextColor3 = T.Accent,
-		TextXAlignment = Enum.TextXAlignment.Left,
+	Kit.corner(window, 22)
+	local windowStroke = window:FindFirstChildOfClass("UIStroke")
+	if windowStroke then
+		windowStroke.Thickness = 4
+	end
+	-- header ribbon
+	local header = Kit.new("Frame", {
+		Position = UDim2.fromOffset(10, 10),
+		Size = UDim2.new(1, -20, 0, 52),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
 		Parent = window,
 	})
+	Kit.corner(header, 16)
+	Kit.stroke(header, T.Ink, 3, 0)
+	Kit.gradient(header, Color3.fromRGB(255, 130, 175), Color3.fromRGB(235, 60, 120), 90)
+	Kit.label({
+		Position = UDim2.new(0, 18, 0, 0),
+		Size = UDim2.new(0, 400, 1, 0),
+		Text = "🚗 " .. Strings.get("GarageTitle"),
+		TextSize = 32,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 3,
+		Parent = header,
+	})
 	Kit.button({
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -14, 0, 12),
-		Size = UDim2.new(0, 44, 0, 40),
-		Text = "✕",
-		TextSize = 22,
-		BackgroundColor3 = T.PanelAlt,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(1, -8, 0, 8),
+		Size = UDim2.new(0, 54, 0, 50),
+		Text = "✖",
+		TextSize = 26,
+		BackgroundColor3 = T.Bad,
+		cornerRadius = 14,
+		ZIndex = 10,
 		onClick = function()
 			Garage.close()
 		end,
@@ -670,11 +680,12 @@ local function buildWindow()
 
 	-- left: class chips + grid
 	chips = Kit.new("ScrollingFrame", {
-		Position = UDim2.new(0, 16, 0, 64),
-		Size = UDim2.new(0, 540, 0, 40),
+		Position = UDim2.new(0, 16, 0, 72),
+		Size = UDim2.new(0, 540, 0, 48),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		ScrollBarThickness = 3,
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = T.Accent,
 		ScrollingDirection = Enum.ScrollingDirection.X,
 		AutomaticCanvasSize = Enum.AutomaticSize.X,
 		CanvasSize = UDim2.new(),
@@ -682,8 +693,8 @@ local function buildWindow()
 	})
 	Kit.list(chips, Enum.FillDirection.Horizontal, 6)
 	grid = Kit.new("ScrollingFrame", {
-		Position = UDim2.new(0, 16, 0, 112),
-		Size = UDim2.new(0, 540, 1, -128),
+		Position = UDim2.new(0, 16, 0, 124),
+		Size = UDim2.new(0, 540, 1, -140),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 5,
@@ -693,30 +704,39 @@ local function buildWindow()
 		Parent = window,
 	})
 	Kit.new("UIGridLayout", {
-		CellSize = UDim2.new(0, 260, 0, 92),
-		CellPadding = UDim2.new(0, 10, 0, 10),
+		CellSize = UDim2.new(0, 256, 0, 96),
+		CellPadding = UDim2.new(0, 12, 0, 12),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = grid,
 	})
-	Kit.padding(grid, 2)
+	Kit.padding(grid, 5)
 
 	-- right: preview + tabs + actions
 	local right = Kit.new("Frame", {
-		Position = UDim2.new(0, 572, 0, 64),
-		Size = UDim2.new(1, -588, 1, -80),
+		Position = UDim2.new(0, 572, 0, 76),
+		Size = UDim2.new(1, -588, 1, -92),
 		BackgroundTransparency = 1,
 		Parent = window,
 	})
+	-- the car stands on a sky-blue stage
+	local stage = Kit.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 260),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		Parent = right,
+	})
+	Kit.corner(stage, 18)
+	Kit.stroke(stage, T.Ink, 3, 0)
+	Kit.gradient(stage, Color3.fromRGB(150, 215, 255), Color3.fromRGB(60, 110, 200), 90)
 	viewport = Kit.new("ViewportFrame", {
-		Size = UDim2.new(1, 0, 0, 270),
-		BackgroundColor3 = T.Panel,
-		BackgroundTransparency = 0,
+		Size = UDim2.new(1, 0, 0, 260),
+		BackgroundTransparency = 1,
 		Ambient = Color3.fromRGB(150, 150, 160),
 		LightColor = Color3.fromRGB(255, 250, 240),
 		LightDirection = Vector3.new(-0.4, -1, -0.6),
 		Parent = right,
 	})
-	Kit.corner(viewport, 12)
+	Kit.corner(viewport, 18)
 	worldModel = Kit.new("WorldModel", { Parent = viewport })
 	camera = Kit.new("Camera", { FieldOfView = 40, Parent = viewport })
 	viewport.CurrentCamera = camera
@@ -725,36 +745,35 @@ local function buildWindow()
 	floor.Shape = Enum.PartType.Cylinder
 	floor.Size = Vector3.new(0.4, 40, 40)
 	floor.CFrame = CFrame.new(0, -0.2, 0) * CFrame.Angles(0, 0, math.pi / 2)
-	floor.Color = Color3.fromRGB(40, 44, 58)
+	floor.Color = Color3.fromRGB(70, 92, 150)
 	floor.Material = Enum.Material.SmoothPlastic
 	floor.Anchored = true
 	floor.Parent = viewport
 
 	nameLabel = Kit.label({
-		Position = UDim2.new(0, 16, 0, 10),
-		Size = UDim2.new(1, -32, 0, 36),
+		Position = UDim2.new(0, 18, 0, 10),
+		Size = UDim2.new(1, -36, 0, 40),
 		Text = "",
-		Font = T.FontBlack,
-		TextSize = 30,
+		TextSize = 34,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextStrokeTransparency = 0.6,
+		outline = 3,
 		ZIndex = 3,
 		Parent = viewport,
 	})
 	classLabel = Kit.label({
-		Position = UDim2.new(0, 18, 0, 44),
-		Size = UDim2.new(1, -32, 0, 20),
+		Position = UDim2.new(0, 20, 0, 50),
+		Size = UDim2.new(1, -36, 0, 22),
 		Text = "",
-		TextSize = 16,
+		TextSize = 18,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextStrokeTransparency = 0.6,
+		outline = 2,
 		ZIndex = 3,
 		Parent = viewport,
 	})
 
 	local tabs = Kit.new("Frame", {
-		Position = UDim2.new(0, 0, 0, 280),
-		Size = UDim2.new(1, 0, 0, 38),
+		Position = UDim2.new(0, 0, 0, 272),
+		Size = UDim2.new(1, 0, 0, 42),
 		BackgroundTransparency = 1,
 		Parent = right,
 	})
@@ -762,9 +781,9 @@ local function buildWindow()
 	for i, name in { "Info", "Paint", "Tuning" } do
 		local key = if name == "Info" then "TabCars" elseif name == "Paint" then "TabPaint" else "TabTuning"
 		tabButtons[name] = Kit.button({
-			Size = UDim2.new(0, 150, 1, 0),
+			Size = UDim2.new(0, 160, 1, 0),
 			Text = Strings.get(key),
-			TextSize = 16,
+			TextSize = 18,
 			LayoutOrder = i,
 			BackgroundColor3 = T.Card,
 			onClick = function()
@@ -776,7 +795,7 @@ local function buildWindow()
 	end
 	tabContent = Kit.new("Frame", {
 		Position = UDim2.new(0, 0, 0, 326),
-		Size = UDim2.new(1, 0, 1, -396),
+		Size = UDim2.new(1, 0, 1, -400),
 		BackgroundTransparency = 1,
 		Parent = right,
 	})
@@ -785,9 +804,10 @@ local function buildWindow()
 	primaryButton = Kit.button({
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 0, 1, 0),
-		Size = UDim2.new(0.62, -6, 0, 58),
+		Size = UDim2.new(0.62, -6, 0, 60),
 		Text = "",
-		TextSize = 22,
+		TextSize = 26,
+		cornerRadius = 16,
 		onClick = function()
 			local def = CarCatalog.get(selectedId)
 			if not def then
@@ -807,10 +827,11 @@ local function buildWindow()
 	secondaryButton = Kit.button({
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, 0, 1, 0),
-		Size = UDim2.new(0.38, -6, 0, 58),
+		Size = UDim2.new(0.38, -6, 0, 60),
 		Text = Strings.get("Despawn"),
-		TextSize = 18,
-		BackgroundColor3 = T.PanelAlt,
+		TextSize = 20,
+		cornerRadius = 16,
+		BackgroundColor3 = T.Bad,
 		onClick = function()
 			request("DespawnCar")
 			task.wait(0.2)

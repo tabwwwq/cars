@@ -638,17 +638,16 @@ local function renderChips(sess: Session)
 		local def = ServiceConfig.Steps[stepId]
 		local done = i < sess.step
 		local current = i == sess.step
-		local chip = Kit.new("Frame", {
-			Size = UDim2.fromOffset(if current then 58 else 46, if current then 58 else 46),
-			BackgroundColor3 = if done then T.Good elseif current then def.color else T.Card,
-			BackgroundTransparency = if current or done then 0 else 0.2,
-			BorderSizePixel = 0,
+		local size = if current then 62 else 48
+		local chip = Kit.iconTile(chips, if done then "✔" else def.icon, if done then T.Good elseif current then def.color else T.Disabled, size, {
 			LayoutOrder = i,
-			Parent = chips,
 		})
-		Kit.corner(chip, 29)
-		Kit.stroke(chip, Color3.new(1, 1, 1), if current then 3 else 1, if current then 0.1 else 0.7)
-		Kit.label({ Size = UDim2.fromScale(1, 1), Text = if done then "✓" else def.icon, TextSize = if current then 30 else 22, Font = T.FontBlack, Parent = chip })
+		Kit.corner(chip, size)
+		if done then
+			local icon = chip:FindFirstChild("Icon") :: TextLabel
+			icon.TextSize = 26
+			Kit.outline(icon, 2)
+		end
 	end
 end
 
@@ -659,11 +658,18 @@ local function renderCard(sess: Session)
 	end
 	local def = ServiceConfig.Steps[stepId]
 	cardIcon.Text = def.icon
-	cardIconBack.BackgroundColor3 = def.color
+	local top, mid = Kit.shades(def.color)
+	local g = cardIconBack:FindFirstChildOfClass("UIGradient")
+	if g then
+		g.Color = ColorSequence.new(top, mid)
+	end
 	cardTitle.Text = string.format("%s %d/%d · %s", Strings.get("ServiceStep"), sess.step, #sess.steps, stepName(stepId))
 	local touch = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 	cardHint.Text = Strings.get("StepHint_" .. stepId) .. "\n" .. Strings.get(if touch then "ServiceHowTouch" else "ServiceHowMouse")
-	barFill.BackgroundColor3 = def.color
+	local fillGradient = barFill:FindFirstChildOfClass("UIGradient")
+	if fillGradient then
+		fillGradient.Color = ColorSequence.new(top, mid)
+	end
 	barFill.Size = UDim2.fromScale(0, 1)
 	percent.Text = "0%"
 	ringStroke.Color = def.color
@@ -676,11 +682,10 @@ local function showCheer(text: string, color: Color3)
 	cheer.TextColor3 = color
 	cheer.Visible = true
 	cheer.TextTransparency = 0
-	cheer.TextStrokeTransparency = 0.3
 	cheer.Size = UDim2.fromOffset(200, 50)
-	Kit.tween(cheer, 0.25, { Size = UDim2.fromOffset(600, 110) }, Enum.EasingStyle.Back)
+	Kit.tween(cheer, 0.25, { Size = UDim2.fromOffset(640, 120) }, Enum.EasingStyle.Back)
 	task.delay(0.9, function()
-		Kit.tween(cheer, 0.3, { TextTransparency = 1, TextStrokeTransparency = 1 })
+		Kit.tween(cheer, 0.3, { TextTransparency = 1 })
 	end)
 end
 
@@ -695,17 +700,18 @@ local function buildHud()
 		Size = UDim2.fromOffset(620, 112),
 		Parent = gui,
 	})
+	Kit.corner(topBar, 22)
 	titleLabel = Kit.label({
 		Position = UDim2.fromOffset(0, 6),
-		Size = UDim2.new(1, 0, 0, 30),
+		Size = UDim2.new(1, 0, 0, 32),
 		Text = "",
-		TextSize = 24,
-		Font = T.FontBlack,
+		TextSize = 26,
+		outline = 2.5,
 		Parent = topBar,
 	})
 	chips = Kit.new("Frame", {
-		Position = UDim2.fromOffset(0, 42),
-		Size = UDim2.new(1, 0, 0, 60),
+		Position = UDim2.fromOffset(0, 40),
+		Size = UDim2.new(1, 0, 0, 66),
 		BackgroundTransparency = 1,
 		Parent = topBar,
 	})
@@ -719,74 +725,68 @@ local function buildHud()
 		Size = UDim2.fromOffset(600, 132),
 		Parent = gui,
 	})
-	cardIconBack = Kit.new("Frame", {
-		Position = UDim2.fromOffset(16, 16),
-		Size = UDim2.fromOffset(100, 100),
-		BackgroundColor3 = T.Accent,
-		BorderSizePixel = 0,
-		Parent = card,
-	})
-	Kit.corner(cardIconBack, 50)
-	Kit.gradient(cardIconBack, Color3.new(1, 1, 1), Color3.fromRGB(170, 170, 180), 90)
-	Kit.stroke(cardIconBack, Color3.new(1, 1, 1), 3, 0.3)
-	cardIcon = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "", TextSize = 56, Parent = cardIconBack })
+	Kit.corner(card, 24)
+	cardIconBack = Kit.iconTile(card, "", T.Accent, 104, { Position = UDim2.fromOffset(14, 14) })
+	cardIcon = cardIconBack:FindFirstChild("Icon") :: TextLabel
 	cardTitle = Kit.label({
-		Position = UDim2.fromOffset(134, 14),
-		Size = UDim2.new(1, -150, 0, 32),
+		Position = UDim2.fromOffset(134, 12),
+		Size = UDim2.new(1, -150, 0, 34),
 		Text = "",
-		TextSize = 26,
-		Font = T.FontBlack,
+		TextSize = 28,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 2.5,
 		Parent = card,
 	})
 	cardHint = Kit.label({
 		Position = UDim2.fromOffset(134, 48),
 		Size = UDim2.new(1, -150, 0, 36),
 		Text = "",
-		TextSize = 17,
+		TextSize = 16,
 		Font = T.FontMedium,
-		TextColor3 = T.Muted,
+		TextColor3 = Color3.fromRGB(205, 220, 255),
 		TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 		Parent = card,
 	})
 	local barBack = Kit.new("Frame", {
-		Position = UDim2.fromOffset(134, 94),
-		Size = UDim2.new(1, -220, 0, 20),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.85,
+		Position = UDim2.fromOffset(134, 92),
+		Size = UDim2.new(1, -224, 0, 24),
+		BackgroundColor3 = Color3.fromRGB(14, 20, 50),
 		BorderSizePixel = 0,
 		Parent = card,
 	})
-	Kit.corner(barBack, 10)
-	barFill = Kit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Good, BorderSizePixel = 0, Parent = barBack })
-	Kit.corner(barFill, 10)
+	Kit.corner(barBack, 12)
+	Kit.stroke(barBack, T.Ink, 3, 0)
+	barFill = Kit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, Parent = barBack })
+	Kit.corner(barFill, 12)
+	Kit.gradient(barFill, Color3.fromRGB(140, 255, 150), T.Good, 90)
 	percent = Kit.label({
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -16, 0, 88),
-		Size = UDim2.fromOffset(70, 30),
+		Position = UDim2.new(1, -16, 0, 86),
+		Size = UDim2.fromOffset(76, 34),
 		Text = "0%",
-		TextSize = 24,
-		Font = T.FontBlack,
+		TextSize = 28,
 		TextXAlignment = Enum.TextXAlignment.Right,
+		outline = 2.5,
 		Parent = card,
 	})
 
 	-- exit
-	local exit = Kit.button({
+	Kit.button({
 		Name = "ExitWork",
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -24, 1, -24),
 		Size = UDim2.fromOffset(150, 56),
-		Text = "✕  " .. Strings.get("ServiceExitWork"),
-		BackgroundColor3 = Color3.fromRGB(60, 66, 86),
+		Text = "✖  " .. Strings.get("ServiceExitWork"),
+		TextSize = 22,
+		BackgroundColor3 = T.Bad,
+		cornerRadius = 16,
 		onClick = function()
 			Workshop.exit()
 		end,
 		Parent = gui,
 	})
-	Kit.stroke(exit, Color3.new(1, 1, 1), 2, 0.7)
 
 	-- rotate buttons (also A/D, arrows or right mouse drag)
 	local rotate = Kit.new("Frame", {
@@ -800,7 +800,7 @@ local function buildHud()
 		local b = Kit.bigButton({
 			icon = if dir < 0 then "⟲" else "⟳",
 			caption = "",
-			color = Color3.fromRGB(70, 90, 140),
+			color = T.Accent2,
 			size = 70,
 			layoutOrder = i,
 			parent = rotate,
@@ -830,13 +830,13 @@ local function buildHud()
 		end)
 	end
 	controlsHint = Kit.label({
-		Position = UDim2.fromOffset(0, 80),
-		Size = UDim2.fromOffset(260, 24),
+		Position = UDim2.fromOffset(0, 84),
+		Size = UDim2.fromOffset(360, 24),
 		Text = Strings.get("ServiceRotateHint"),
-		TextSize = 14,
-		TextColor3 = T.Muted,
+		TextSize = 15,
+		Font = T.FontMedium,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		TextStrokeTransparency = 0.6,
+		outline = 1.5,
 		Parent = rotate,
 	})
 
@@ -849,7 +849,16 @@ local function buildHud()
 		Parent = gui,
 	})
 	Kit.corner(ring, 1000)
-	ringStroke = Kit.stroke(ring, T.Accent, 3, 0.15)
+	ringStroke = Kit.stroke(ring, T.Accent, 4, 0)
+	local inner = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -8, 1, -8),
+		BackgroundTransparency = 1,
+		Parent = ring,
+	})
+	Kit.corner(inner, 1000)
+	Kit.stroke(inner, T.Ink, 2, 0.3)
 	local dot = Kit.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
@@ -867,7 +876,7 @@ local function buildHud()
 		Text = "",
 		TextScaled = true,
 		Font = T.FontBlack,
-		TextStrokeTransparency = 0.3,
+		outline = 5,
 		Visible = false,
 		ZIndex = 40,
 		Parent = gui,

@@ -19,63 +19,90 @@ local spinner: Frame
 
 function Loading.init()
 	gui = Kit.screen("CarsLoading", 100)
-	local back = Kit.new("Frame", {
+	-- one CanvasGroup so the whole splash fades out together
+	local back = Kit.new("CanvasGroup", {
+		Name = "Splash",
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = T.Bg,
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		Parent = gui,
 	})
-	Kit.gradient(back, Color3.fromRGB(40, 46, 70), Color3.fromRGB(10, 12, 20), 90)
-	Kit.label({
+	Kit.gradient(back, Color3.fromRGB(70, 110, 230), Color3.fromRGB(20, 26, 70), 90)
+	-- logo: chunky orange letters with a thick outline on a tilted ribbon
+	local ribbon = Kit.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.42),
-		Size = UDim2.new(0, 600, 0, 120),
-		Text = "CARS",
-		Font = T.FontBlack,
-		TextSize = 120,
-		TextColor3 = T.Accent,
-		Parent = back,
-	})
-	Kit.label({
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.55),
-		Size = UDim2.new(0, 700, 0, 30),
-		Text = Strings.get("Loading"),
-		TextSize = 22,
-		TextColor3 = T.Muted,
-		Parent = back,
-	})
-	spinner = Kit.new("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.64),
-		Size = UDim2.new(0, 46, 0, 46),
-		Rotation = 0,
-		BackgroundColor3 = T.Accent,
+		Position = UDim2.fromScale(0.5, 0.4),
+		Size = UDim2.new(0, 620, 0, 170),
+		Rotation = -3,
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		Parent = back,
 	})
-	Kit.corner(spinner, 10)
+	Kit.corner(ribbon, 34)
+	Kit.stroke(ribbon, T.Ink, 6, 0)
+	Kit.gradient(ribbon, Color3.fromRGB(255, 200, 80), T.Accent, 90)
+	Kit.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "CARS",
+		Font = Enum.Font.FredokaOne,
+		TextSize = 140,
+		outline = 6,
+		Parent = ribbon,
+	})
+	Kit.label({
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.58),
+		Size = UDim2.new(0, 700, 0, 40),
+		Text = "🚗  🔧  🏁",
+		TextSize = 34,
+		Parent = back,
+	})
+	Kit.label({
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.65),
+		Size = UDim2.new(0, 800, 0, 34),
+		Text = Strings.get("Loading"),
+		TextSize = 26,
+		outline = 2.5,
+		Parent = back,
+	})
+	local barBack = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.72),
+		Size = UDim2.new(0, 460, 0, 28),
+		BackgroundColor3 = Color3.fromRGB(14, 20, 50),
+		BorderSizePixel = 0,
+		Parent = back,
+	})
+	Kit.corner(barBack, 14)
+	Kit.stroke(barBack, T.Ink, 4, 0)
+	spinner = Kit.new("Frame", {
+		Name = "Fill",
+		Size = UDim2.fromScale(0.05, 1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		Parent = barBack,
+	})
+	Kit.corner(spinner, 14)
+	Kit.gradient(spinner, Color3.fromRGB(140, 255, 150), T.Good, 90)
 end
 
 function Loading.start()
 	local player = Players.LocalPlayer
 	local started = os.clock()
+	local progress = 0.05
 	local conn
 	conn = RunService.RenderStepped:Connect(function(dt)
-		spinner.Rotation += dt * 220
+		-- creeps towards 90% while we wait, jumps to 100% when ready
+		progress += (0.9 - progress) * math.min(1, dt * 0.8)
+		spinner.Size = UDim2.fromScale(progress, 1)
 		local ready = player.Character ~= nil and ClientState.profile ~= nil
 		if ready or os.clock() - started > 45 then
 			conn:Disconnect()
-			local back = gui:FindFirstChildOfClass("Frame")
+			spinner.Size = UDim2.fromScale(1, 1)
+			local back = gui:FindFirstChild("Splash") :: CanvasGroup?
 			if back then
-				Kit.tween(back, 0.5, { BackgroundTransparency = 1 })
-				for _, d in back:GetDescendants() do
-					if d:IsA("TextLabel") then
-						Kit.tween(d, 0.4, { TextTransparency = 1 })
-					elseif d:IsA("Frame") then
-						Kit.tween(d, 0.4, { BackgroundTransparency = 1 })
-					end
-				end
+				Kit.tween(back, 0.5, { GroupTransparency = 1 })
 			end
 			task.delay(0.6, function()
 				gui:Destroy()

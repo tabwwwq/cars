@@ -452,10 +452,25 @@ function UDim2.fromOffset(x, y)
 end
 M.UDim2 = UDim2
 M.NumberRange = simpleType("NumberRange", { "Min", "Max" })
-M.NumberSequence = simpleType("NumberSequence", { "Keypoints" })
 M.NumberSequenceKeypoint = simpleType("NumberSequenceKeypoint", { "Time", "Value", "Envelope" })
-M.ColorSequence = simpleType("ColorSequence", { "Keypoints" })
 M.ColorSequenceKeypoint = simpleType("ColorSequenceKeypoint", { "Time", "Value" })
+-- sequences accept (value), (from, to) or a keypoint list like the real ones
+local function sequenceType(name, keypoint)
+	local T = {}
+	local mt = { __type = name, __index = T }
+	function T.new(a, b)
+		local points
+		if type(a) == "table" and getmetatable(a) == nil then
+			points = a
+		else
+			points = { keypoint.new(0, a), keypoint.new(1, if b == nil then a else b) }
+		end
+		return setmetatable({ Keypoints = points }, mt)
+	end
+	return T
+end
+M.NumberSequence = sequenceType("NumberSequence", M.NumberSequenceKeypoint)
+M.ColorSequence = sequenceType("ColorSequence", M.ColorSequenceKeypoint)
 M.PhysicalProperties = simpleType("PhysicalProperties", { "Density", "Friction", "Elasticity", "FrictionWeight", "ElasticityWeight" })
 M.TweenInfo = simpleType("TweenInfo", { "Time", "EasingStyle", "EasingDirection" })
 M.Rect = simpleType("Rect", { "Min", "Max" })
@@ -707,7 +722,12 @@ Imt.__newindex = function(self, k, v)
 		props.CFrame = c - c.Position + v
 		return
 	end
+	local old = props[k]
 	props[k] = v
+	local sigs = rawget(self, "__propSignals")
+	if sigs and sigs[k] and old ~= v then
+		sigs[k]:Fire()
+	end
 end
 
 Imt.__tostring = function(self)
@@ -828,8 +848,25 @@ function methods.Clone(self)
 	end
 	return o
 end
+local function changeSignal(self, store, k)
+	local sigs = rawget(self, store)
+	if not sigs then
+		sigs = {}
+		rawset(self, store, sigs)
+	end
+	sigs[k] = sigs[k] or newSignal()
+	return sigs[k]
+end
 function methods.SetAttribute(self, k, v)
-	rawget(self, "__attrs")[k] = v
+	local attrs = rawget(self, "__attrs")
+	if attrs[k] == v then
+		return
+	end
+	attrs[k] = v
+	local sigs = rawget(self, "__attrSignals")
+	if sigs and sigs[k] then
+		sigs[k]:Fire()
+	end
 end
 function methods.GetAttribute(self, k)
 	return rawget(self, "__attrs")[k]
@@ -838,10 +875,10 @@ function methods.GetAttributes(self)
 	return table.clone(rawget(self, "__attrs"))
 end
 function methods.GetAttributeChangedSignal(self, k)
-	return newSignal()
+	return changeSignal(self, "__attrSignals", k)
 end
 function methods.GetPropertyChangedSignal(self, k)
-	return newSignal()
+	return changeSignal(self, "__propSignals", k)
 end
 function methods.AddTag(self, tag)
 	rawget(self, "__attrs")["__tag_" .. tag] = true
@@ -1102,6 +1139,22 @@ function M.makeGame()
 	end
 	rawget(runService, "__props").IsClient = function()
 		return false
+	end
+	-- tweens finish instantly so UI dumps show the final state
+	local tweenService = service("TweenService")
+	rawget(tweenService, "__props").Create = function(_, inst, _info, goals)
+		local tween = Instance.new("Tween")
+		local completed = newSignal()
+		rawget(tween, "__props").Completed = completed
+		rawget(tween, "__props").Play = function()
+			for k, v in goals do
+				inst[k] = v
+			end
+			completed:Fire(Enum and Enum.PlaybackState and Enum.PlaybackState.Completed or "Completed")
+		end
+		rawget(tween, "__props").Cancel = function() end
+		rawget(tween, "__props").Pause = function() end
+		return tween
 	end
 	local cs = service("CollectionService")
 	rawget(cs, "__props").AddTag = function(_, inst, tag)

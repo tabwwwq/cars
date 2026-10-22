@@ -21,6 +21,12 @@ local KIND_COLORS = {
 	warning = T.Warn,
 	error = T.Bad,
 }
+local KIND_ICONS = {
+	info = "💬",
+	success = "✅",
+	warning = "⚠️",
+	error = "⛔",
+}
 
 -- Translates arguments that are themselves string keys.
 local function localizeArgs(args: { any }?): { any }
@@ -36,35 +42,30 @@ local function localizeArgs(args: { any }?): { any }
 end
 
 function Notifications.show(text: string, kind: string?)
-	local color = KIND_COLORS[kind or "info"] or T.Accent2
+	local k = kind or "info"
+	local color = KIND_COLORS[k] or T.Accent2
 	local toast = Kit.panel({
-		Size = UDim2.new(0, 460, 0, 0),
+		Size = UDim2.new(0, 500, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundTransparency = 0.05,
 		Parent = toastHolder,
 	})
-	Kit.padding(toast, 14, 10)
-	local strip = Kit.new("Frame", {
-		Size = UDim2.new(0, 4, 1, 0),
-		Position = UDim2.new(0, -10, 0, 0),
-		BackgroundColor3 = color,
-		BorderSizePixel = 0,
-		Parent = toast,
-	})
-	Kit.corner(strip, 2)
-	local label = Kit.label({
-		Size = UDim2.new(1, 0, 0, 0),
+	Kit.corner(toast, 20)
+	Kit.padding(toast, 12, 10)
+	Kit.new("UISizeConstraint", { MinSize = Vector2.new(500, 64), Parent = toast })
+	Kit.iconTile(toast, KIND_ICONS[k] or "💬", color, 46, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0) })
+	Kit.label({
+		Position = UDim2.fromOffset(58, 0),
+		Size = UDim2.new(1, -58, 0, 44),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		Text = text,
 		TextWrapped = true,
-		TextSize = 19,
+		TextSize = 21,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 2,
 		Parent = toast,
 	})
-	label.TextTransparency = 1
-	toast.BackgroundTransparency = 1
-	Kit.tween(label, 0.2, { TextTransparency = 0 })
-	Kit.tween(toast, 0.2, { BackgroundTransparency = 0.05 })
+	local scale = Kit.new("UIScale", { Scale = 0.6, Parent = toast })
+	Kit.tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
 	-- keep at most 4 toasts
 	local children = {}
 	for _, c in toastHolder:GetChildren() do
@@ -77,14 +78,8 @@ function Notifications.show(text: string, kind: string?)
 	end
 	task.delay(3.6, function()
 		if toast.Parent then
-			Kit.tween(label, 0.3, { TextTransparency = 1 })
-			Kit.tween(toast, 0.3, { BackgroundTransparency = 1 })
-			local s = toast:FindFirstChildOfClass("UIStroke")
-			if s then
-				Kit.tween(s, 0.3, { Transparency = 1 })
-			end
-			strip:Destroy()
-			task.wait(0.32)
+			Kit.tween(scale, 0.2, { Scale = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+			task.wait(0.22)
 			toast:Destroy()
 		end
 	end)
@@ -113,23 +108,29 @@ function Notifications.reward(kind: string, amount: number, detail: any)
 		title = Strings.get(REWARD_KEYS[kind] or "Cash")
 	end
 	local big = kind ~= "distance"
-	local label = Kit.label({
-		Size = UDim2.new(1, 0, 0, if big then 30 else 22),
-		Text = string.format("+%s  %s", Format.money(amount), title),
-		TextColor3 = if big then T.Gold else T.Good,
-		Font = T.FontBlack,
-		TextSize = if big then 24 else 18,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextStrokeTransparency = 0.5,
+	local row = Kit.new("Frame", {
+		Size = UDim2.new(1, 0, 0, if big then 40 else 30),
+		BackgroundTransparency = 1,
 		Parent = rewardHolder,
 	})
-	label.TextTransparency = 1
-	label.TextStrokeTransparency = 1
-	Kit.tween(label, 0.15, { TextTransparency = 0, TextStrokeTransparency = 0.5 })
+	Kit.coin(row, if big then 34 else 24, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0) })
+	Kit.label({
+		Position = UDim2.fromOffset(if big then 42 else 32, 0),
+		Size = UDim2.new(1, -42, 1, 0),
+		Text = string.format("+%s  %s", Format.money(amount), title),
+		TextColor3 = if big then T.Gold else Color3.fromRGB(150, 255, 150),
+		TextSize = if big then 30 else 22,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.None,
+		outline = 2.5,
+		Parent = row,
+	})
+	local scale = Kit.new("UIScale", { Scale = 0.4, Parent = row })
+	Kit.tween(scale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
 	task.delay(if big then 2.6 else 1.6, function()
-		Kit.tween(label, 0.4, { TextTransparency = 1, TextStrokeTransparency = 1 })
-		task.wait(0.45)
-		label:Destroy()
+		Kit.tween(scale, 0.25, { Scale = 0 }, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+		task.wait(0.27)
+		row:Destroy()
 	end)
 end
 
@@ -138,20 +139,20 @@ function Notifications.init()
 	toastHolder = Kit.new("Frame", {
 		Name = "Toasts",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 200), -- below the race panel
-		Size = UDim2.new(0, 460, 0, 300),
+		Position = UDim2.new(0.5, 0, 0, 104), -- below the hint card
+		Size = UDim2.new(0, 500, 0, 320),
 		BackgroundTransparency = 1,
 		Parent = gui,
 	})
 	Kit.list(toastHolder, Enum.FillDirection.Vertical, 8, Enum.HorizontalAlignment.Center)
 	rewardHolder = Kit.new("Frame", {
 		Name = "Rewards",
-		Position = UDim2.new(0, 120, 0, 132),
-		Size = UDim2.new(0, 360, 0, 200),
+		Position = UDim2.new(0, 216, 0, 300), -- right of the rail, under the toasts
+		Size = UDim2.new(0, 460, 0, 260),
 		BackgroundTransparency = 1,
 		Parent = gui,
 	})
-	Kit.list(rewardHolder, Enum.FillDirection.Vertical, 2)
+	Kit.list(rewardHolder, Enum.FillDirection.Vertical, 4)
 end
 
 function Notifications.start()

@@ -172,38 +172,41 @@ end
 
 local function showResults(payload)
 	for _, c in results:GetChildren() do
-		if not c:IsA("UICorner") and not c:IsA("UIStroke") and not c:IsA("UIPadding") and not c:IsA("UIListLayout") then
+		if c:IsA("GuiObject") then
 			c:Destroy()
 		end
 	end
 	local medal = payload.medal
-	Kit.label({ Size = UDim2.new(1, 0, 0, 30), Text = trackName(payload.trackId), TextSize = 22, TextColor3 = T.Muted, LayoutOrder = 1, Parent = results })
-	Kit.label({ Size = UDim2.new(1, 0, 0, 64), Text = Format.time(payload.time), Font = T.FontBlack, TextSize = 60, LayoutOrder = 2, Parent = results })
+	Kit.label({ Size = UDim2.new(1, 0, 0, 30), Text = "🏁 " .. trackName(payload.trackId), TextSize = 24, TextColor3 = T.Muted, outline = 2, LayoutOrder = 1, Parent = results })
+	Kit.label({ Size = UDim2.new(1, 0, 0, 68), Text = Format.time(payload.time), Font = T.FontBlack, TextSize = 64, outline = 3.5, LayoutOrder = 2, Parent = results })
 	Kit.label({
 		Size = UDim2.new(1, 0, 0, 34),
 		Text = if medal then "★ " .. Strings.get("Medal" .. medal) .. " ★" else Strings.get("MedalNone"),
 		Font = T.FontBlack,
-		TextSize = 30,
+		TextSize = 34,
 		TextColor3 = if medal then MEDAL_COLORS[medal] else T.Muted,
+		outline = 3,
 		LayoutOrder = 3,
 		Parent = results,
 	})
 	if payload.newRecord then
-		Kit.label({ Size = UDim2.new(1, 0, 0, 26), Text = Strings.get("RaceNewRecord"), TextSize = 20, TextColor3 = T.Good, LayoutOrder = 4, Parent = results })
+		Kit.pill(results, "🏆 " .. Strings.get("RaceNewRecord"), T.Good, 4).TextSize = 20
 	end
 	Kit.label({
-		Size = UDim2.new(1, 0, 0, 26),
-		Text = Strings.get("RaceReward", Format.money(payload.reward or 0)),
-		TextSize = 20,
+		Size = UDim2.new(1, 0, 0, 32),
+		Text = "💰 " .. Strings.get("RaceReward", Format.money(payload.reward or 0)),
+		TextSize = 26,
 		TextColor3 = T.Gold,
+		outline = 2.5,
 		LayoutOrder = 5,
 		Parent = results,
 	})
 	local row = Kit.new("Frame", { Size = UDim2.new(1, 0, 0, 52), BackgroundTransparency = 1, LayoutOrder = 6, Parent = results })
 	Kit.list(row, Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Center)
 	Kit.button({
-		Size = UDim2.new(0, 190, 1, 0),
-		Text = Strings.get("RaceStart"),
+		Size = UDim2.new(0, 190, 1, -6),
+		Text = "▶ " .. Strings.get("RaceStart"),
+		TextSize = 22,
 		BackgroundColor3 = T.Good,
 		onClick = function()
 			results.Visible = false
@@ -218,9 +221,10 @@ local function showResults(payload)
 		Parent = row,
 	})
 	Kit.button({
-		Size = UDim2.new(0, 150, 1, 0),
+		Size = UDim2.new(0, 150, 1, -6),
 		Text = Strings.get("Close"),
-		BackgroundColor3 = T.PanelAlt,
+		TextSize = 22,
+		BackgroundColor3 = T.Bad,
 		onClick = function()
 			results.Visible = false
 		end,
@@ -290,17 +294,18 @@ local function build()
 		Visible = false,
 		Parent = gui,
 	})
-	trackLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 8), Size = UDim2.new(1, 0, 0, 22), Text = "", TextSize = 18, TextColor3 = T.Accent, Parent = panel })
-	timerLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 30), Size = UDim2.new(1, 0, 0, 52), Text = "0:00.00", Font = T.FontBlack, TextSize = 48, Parent = panel })
-	progressLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 82), Size = UDim2.new(1, 0, 0, 20), Text = "", TextSize = 16, Parent = panel })
-	bestLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 102), Size = UDim2.new(1, 0, 0, 18), Text = "", TextSize = 14, TextColor3 = T.Muted, Parent = panel })
-	medalsLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 120), Size = UDim2.new(1, 0, 0, 18), Text = "", TextSize = 12, TextColor3 = T.Muted, Parent = panel })
+	Kit.corner(panel, 22)
+	trackLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 8), Size = UDim2.new(1, 0, 0, 24), Text = "", TextSize = 20, TextColor3 = T.Accent, outline = 2, Parent = panel })
+	timerLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 30), Size = UDim2.new(1, 0, 0, 54), Text = "0:00.00", Font = T.FontBlack, TextSize = 52, outline = 3, Parent = panel })
+	progressLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 84), Size = UDim2.new(1, 0, 0, 22), Text = "", TextSize = 18, outline = 2, Parent = panel })
+	bestLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 106), Size = UDim2.new(1, 0, 0, 18), Text = "", TextSize = 15, Font = T.FontMedium, TextColor3 = T.Muted, Parent = panel })
+	medalsLabel = Kit.label({ Position = UDim2.new(0, 0, 0, 124), Size = UDim2.new(1, 0, 0, 18), Text = "", TextSize = 13, Font = T.FontMedium, TextColor3 = T.Muted, Parent = panel })
 	Kit.button({
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 1, 8),
-		Size = UDim2.new(0, 170, 0, 34),
-		Text = Strings.get("RaceLeave"),
-		TextSize = 14,
+		Position = UDim2.new(0.5, 0, 1, 10),
+		Size = UDim2.new(0, 200, 0, 40),
+		Text = "🏳 " .. Strings.get("RaceLeave"),
+		TextSize = 17,
 		BackgroundColor3 = T.Bad,
 		onClick = function()
 			Net.request("LeaveRace")
@@ -313,9 +318,9 @@ local function build()
 		Size = UDim2.new(0, 400, 0, 160),
 		Text = "",
 		Font = T.FontBlack,
-		TextSize = 140,
+		TextSize = 150,
 		TextColor3 = T.Gold,
-		TextStrokeTransparency = 0.3,
+		outline = 6,
 		Visible = false,
 		Parent = gui,
 	})
@@ -328,6 +333,7 @@ local function build()
 		Visible = false,
 		Parent = gui,
 	})
+	Kit.corner(results, 24)
 	Kit.padding(results, 20, 18)
 	Kit.list(results, Enum.FillDirection.Vertical, 8, Enum.HorizontalAlignment.Center)
 end

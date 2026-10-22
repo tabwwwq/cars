@@ -29,6 +29,23 @@ per frame). Profile field `service` (v3). Add a vehicle: a builder + `ServiceMod
 entry, then list its id in a tier. Add a step: `ServiceConfig.Steps` + a service's `steps`
 + `STEP_FLOW`/`LOOK`/tool in `Workshop.luau` + `Step_*`/`StepHint_*` strings.
 
+## UI style (UI/Kit.luau)
+
+Chunky "toy" look: deep-blue gradient panels with a 3-4 px ink outline (`Kit.panel`,
+`Kit.card`), 3D buttons (`Kit.button`: gradient face + glossy shine + darker lip; the
+TextButton itself is transparent and mirrors Text/TextSize/TextColor3/Font onto its
+`Label`, so set those on the button as usual; recolour with `Kit.setButtonColor`),
+rail tiles (`UI/Rail.add` -> `Kit.bigButton`), `Kit.iconTile` (emoji on a colour tile),
+`Kit.coin`, `Kit.pill`, `Kit.modal` (ribbon header, red corner close button). Text gets an
+ink outline via `Kit.label{ outline = 2 }` / `Kit.outline`. Headline font is GothamBlack
+for Russian (FredokaOne has no Cyrillic) and FredokaOne otherwise; small print uses
+`T.FontMedium`. Don't put UIStroke on a Kit.button (it outlines the transparent hit box).
+
+Check UI changes visually: `tools/test.sh client` writes `tests/out/ui_*.json`, then
+`python3 tools/render_ui.py tests/out/ui_orders.json /tmp/ui.png docs/service_plot.png`
+and look at the PNG (fonts in `tools/fonts`, OFL). Add a shot with `uiShot(name)` in the
+client spec for new screens.
+
 ## Commands
 
 ```bash

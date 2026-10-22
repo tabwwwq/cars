@@ -14,6 +14,7 @@ local Strings = require(Shared.Strings)
 
 local ClientState = require(script.Parent.Parent.ClientState)
 local Kit = require(script.Parent.Parent.UI.Kit)
+local Rail = require(script.Parent.Parent.UI.Rail)
 local T = Kit.Theme
 
 local Hud = {}
@@ -23,8 +24,7 @@ local gui: ScreenGui
 local cashLabel: TextLabel
 local displayedCash = 0
 local targetCash = 0
-local dailyButton: TextButton
-local dailyDot: Frame
+local daily: Kit.BigButton
 local speedo: Frame
 local speedLabel: TextLabel
 local gearLabel: TextLabel
@@ -37,90 +37,72 @@ local hint: TextLabel
 local RPM_CELLS = 20
 
 local function buildTopLeft()
+	-- cash: a deep-blue pill with a drawn coin hanging over its left edge
 	local cash = Kit.panel({
 		Name = "Cash",
-		Position = UDim2.new(0, 20, 0, 18),
-		Size = UDim2.new(0, 230, 0, 54),
+		Position = UDim2.new(0, 34, 0, 18),
+		Size = UDim2.new(0, 236, 0, 52),
 		Parent = gui,
 	})
-	Kit.gradient(cash, Color3.fromRGB(255, 255, 255), Color3.fromRGB(200, 205, 220), 90)
-	local icon = Kit.new("Frame", {
-		Size = UDim2.new(0, 38, 0, 38),
-		Position = UDim2.new(0, 8, 0.5, -19),
-		BackgroundColor3 = T.Good,
-		BorderSizePixel = 0,
-		Parent = cash,
-	})
-	Kit.corner(icon, 19)
-	Kit.label({ Size = UDim2.fromScale(1, 1), Text = "$", Font = T.FontBlack, TextSize = 26, Parent = icon })
+	Kit.corner(cash, 26)
+	Kit.coin(cash, 62, { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 2, 0.5, 0) })
 	cashLabel = Kit.label({
-		Size = UDim2.new(1, -60, 1, 0),
-		Position = UDim2.new(0, 54, 0, 0),
+		Position = UDim2.new(0, 40, 0, 0),
+		Size = UDim2.new(1, -50, 1, 0),
 		Text = "$0",
 		Font = T.FontBlack,
-		TextSize = 28,
+		TextSize = 32,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 2.5,
 		Parent = cash,
 	})
 end
 
 local function buildTopRight()
-	local holder = Kit.new("Frame", {
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -20, 0, 18),
-		Size = UDim2.new(0, 520, 0, 54),
-		BackgroundTransparency = 1,
-		Parent = gui,
-	})
-	local layout = Kit.list(holder, Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Right)
-	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-
-	local garage = Kit.button({
-		Name = "GarageButton",
-		Size = UDim2.new(0, 170, 0, 50),
-		Text = Strings.get("Garage") .. "  [G]",
-		LayoutOrder = 3,
+	-- garage and daily live in the shared rail of big tiles
+	Rail.add({
+		name = "Garage",
+		icon = "🚗",
+		caption = Strings.get("Garage"),
+		color = Color3.fromRGB(240, 70, 120),
+		layoutOrder = 5,
 		onClick = function()
 			Hud.GarageRequested:Fire()
 		end,
-		Parent = holder,
 	})
-	Kit.stroke(garage, Color3.new(1, 1, 1), 2, 0.7)
-
-	dailyButton = Kit.button({
-		Name = "DailyButton",
-		Size = UDim2.new(0, 150, 0, 50),
-		Text = Strings.get("Daily"),
-		BackgroundColor3 = T.PanelAlt,
-		LayoutOrder = 2,
+	daily = Rail.add({
+		name = "Daily",
+		icon = "🎁",
+		caption = Strings.get("Daily"),
+		color = Color3.fromRGB(255, 176, 30),
+		layoutOrder = 6,
 		onClick = function()
 			local r = Net.request("ClaimDaily")
 			if r.message then
 				require(script.Parent.Notifications).notifyKey(r.message, r.args, if r.ok then "success" else "info")
 			end
 		end,
-		Parent = holder,
 	})
-	dailyDot = Kit.new("Frame", {
-		Size = UDim2.new(0, 14, 0, 14),
-		Position = UDim2.new(1, -10, 0, -4),
-		BackgroundColor3 = T.Bad,
-		BorderSizePixel = 0,
-		Visible = false,
-		Parent = dailyButton,
-	})
-	Kit.corner(dailyDot, 7)
 
+	local holder = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -20, 0, 18),
+		Size = UDim2.new(0, 300, 0, 50),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	})
+	local layout = Kit.list(holder, Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Right)
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 	local function addDevButton()
 		if holder:FindFirstChild("DevCash") or not Players.LocalPlayer:GetAttribute("IsDev") then
 			return
 		end
 		local dev = Kit.button({
 			Name = "DevCash",
-			Size = UDim2.new(0, 120, 0, 40),
+			Size = UDim2.new(0, 130, 0, 42),
 			Text = Strings.get("DevCash"),
-			TextSize = 15,
-			BackgroundColor3 = Color3.fromRGB(110, 60, 200),
+			TextSize = 18,
+			BackgroundColor3 = T.Purple,
 			LayoutOrder = 1,
 			onClick = function()
 				Net.request("DevCash")
@@ -138,47 +120,51 @@ local function buildSpeedo()
 		Name = "Speedometer",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -22),
-		Size = UDim2.new(0, 380, 0, 128),
+		Size = UDim2.new(0, 400, 0, 136),
 		Visible = false,
 		Parent = gui,
 	})
+	Kit.corner(speedo, 24)
 	speedLabel = Kit.label({
-		Position = UDim2.new(0, 18, 0, 6),
+		Position = UDim2.new(0, 22, 0, 2),
 		Size = UDim2.new(0, 170, 0, 70),
 		Text = "0",
 		Font = T.FontBlack,
-		TextSize = 64,
+		TextSize = 66,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 3,
 		Parent = speedo,
 	})
 	Kit.label({
-		Position = UDim2.new(0, 20, 0, 70),
-		Size = UDim2.new(0, 120, 0, 20),
+		Position = UDim2.new(0, 24, 0, 66),
+		Size = UDim2.new(0, 120, 0, 18),
 		Text = Strings.get("SpeedUnit"),
 		TextColor3 = T.Muted,
-		TextSize = 16,
+		TextSize = 18,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 1.5,
 		Parent = speedo,
 	})
 	local gearBox = Kit.new("Frame", {
-		Position = UDim2.new(0, 186, 0, 14),
-		Size = UDim2.new(0, 56, 0, 56),
-		BackgroundColor3 = T.PanelAlt,
+		Position = UDim2.new(0, 186, 0, 16),
+		Size = UDim2.new(0, 58, 0, 58),
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		Parent = speedo,
 	})
-	Kit.corner(gearBox, 10)
-	Kit.stroke(gearBox, T.Accent, 2, 0.3)
-	gearLabel = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "1", Font = T.FontBlack, TextSize = 34, Parent = gearBox })
+	Kit.corner(gearBox, 16)
+	Kit.stroke(gearBox, T.Ink, 3, 0)
+	Kit.gradient(gearBox, Color3.fromRGB(255, 190, 80), T.Accent, 90)
+	gearLabel = Kit.label({ Size = UDim2.fromScale(1, 1), Text = "1", Font = T.FontBlack, TextSize = 38, outline = 2.5, Parent = gearBox })
 
 	-- RPM cells
 	local rpm = Kit.new("Frame", {
-		Position = UDim2.new(0, 256, 0, 14),
-		Size = UDim2.new(0, 108, 0, 56),
+		Position = UDim2.new(0, 258, 0, 16),
+		Size = UDim2.new(0, 124, 0, 58),
 		BackgroundTransparency = 1,
 		Parent = speedo,
 	})
-	Kit.list(rpm, Enum.FillDirection.Horizontal, 1, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Bottom)
+	Kit.list(rpm, Enum.FillDirection.Horizontal, 2, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Bottom)
 	for i = 1, RPM_CELLS do
 		local cell = Kit.new("Frame", {
 			Size = UDim2.new(0, 4.3, 0, 16 + i * 2),
@@ -188,47 +174,49 @@ local function buildSpeedo()
 			LayoutOrder = i,
 			Parent = rpm,
 		})
+		Kit.corner(cell, 2)
 		table.insert(rpmCells, cell)
 	end
 
 	-- nitro bar
 	local nitroBack = Kit.new("Frame", {
-		Position = UDim2.new(0, 18, 1, -28),
-		Size = UDim2.new(1, -36, 0, 14),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.88,
+		Position = UDim2.new(0, 22, 1, -28),
+		Size = UDim2.new(1, -44, 0, 16),
+		BackgroundColor3 = Color3.fromRGB(16, 24, 50),
 		BorderSizePixel = 0,
 		Parent = speedo,
 	})
-	Kit.corner(nitroBack, 7)
+	Kit.corner(nitroBack, 8)
+	Kit.stroke(nitroBack, T.Ink, 2.5, 0)
 	nitroFill = Kit.new("Frame", {
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = T.Accent2,
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		Parent = nitroBack,
 	})
-	Kit.corner(nitroFill, 7)
-	Kit.gradient(nitroFill, Color3.fromRGB(70, 196, 255), Color3.fromRGB(170, 90, 255), 0)
+	Kit.corner(nitroFill, 8)
+	Kit.gradient(nitroFill, Color3.fromRGB(70, 210, 255), Color3.fromRGB(170, 90, 255), 0)
 	nitroLabel = Kit.label({
-		Position = UDim2.new(0, 0, 0, -18),
-		Size = UDim2.new(1, 0, 0, 16),
-		Text = Strings.get("Nitro"),
+		Position = UDim2.new(0, 2, 0, -20),
+		Size = UDim2.new(1, 0, 0, 18),
+		Text = "🔥 " .. Strings.get("Nitro"),
 		TextColor3 = T.Muted,
-		TextSize = 13,
+		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Left,
+		outline = 1.5,
 		Parent = nitroBack,
 	})
 
 	meter = Kit.label({
 		Name = "Meter",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -160),
-		Size = UDim2.new(0, 400, 0, 44),
+		Position = UDim2.new(0.5, 0, 1, -170),
+		Size = UDim2.new(0, 460, 0, 56),
 		Text = "",
 		Font = T.FontBlack,
-		TextSize = 34,
+		TextSize = 44,
 		TextColor3 = T.Gold,
-		TextStrokeTransparency = 0.4,
+		outline = 3,
 		Visible = false,
 		Parent = gui,
 	})
@@ -247,26 +235,28 @@ local function buildHint()
 		Size = UDim2.new(0, 520, 0, 50),
 		Text = text,
 		TextWrapped = true,
-		TextSize = 14,
-		TextColor3 = T.Muted,
+		TextSize = 15,
+		Font = T.FontMedium,
+		TextColor3 = T.Text,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Bottom,
-		TextStrokeTransparency = 0.6,
+		outline = 1.5,
 		Visible = false,
 		Parent = gui,
 	})
 end
 
 local function updateDaily(profile)
-	if not profile or not dailyButton then
+	if not profile or not daily then
 		return
 	end
 	local today = math.floor((profile.serverTime or os.time()) / 86400)
 	local last = math.floor((profile.daily and profile.daily.last or 0) / 86400)
 	local ready = profile.daily == nil or profile.daily.last == 0 or today > last
-	dailyDot.Visible = ready
-	dailyButton.Text = if ready then Strings.get("DailyReady") else Strings.get("Daily")
-	Kit.setButtonColor(dailyButton, if ready then T.Good else T.PanelAlt)
+	daily.setBadge(if ready then 1 else nil)
+	daily.setPulse(ready)
+	daily.caption.Text = if ready then Strings.get("DailyReady") else Strings.get("Daily")
+	daily.setColor(if ready then Color3.fromRGB(255, 176, 30) else T.Disabled)
 end
 
 function Hud.init()
@@ -323,7 +313,7 @@ function Hud.start()
 		if cells ~= lit then
 			lit = cells
 			for i, cell in rpmCells do
-				cell.BackgroundTransparency = if i <= cells then 0 else 0.82
+				cell.BackgroundTransparency = if i <= cells then 0 else 0.8
 			end
 		end
 		nitroFill.Size = UDim2.fromScale(math.clamp(tel.nitro, 0, 1), 1)

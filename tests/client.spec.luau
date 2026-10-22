@@ -47,6 +47,18 @@ local function fire(service, event, ...)
 	game:GetService(service)[event]:Fire(...)
 end
 
+-- writes tests/out/ui_<name>.json for tools/render_ui.py
+local dumpGui = loadchunk(readfile("tests/harness/guidump.luau"), "@tests/harness/guidump.luau", setmetatable({}, { __index = _G }))()
+local function uiShot(name)
+	for _, gname in { "CarsLoading" } do
+		local g = playerGui:FindFirstChild(gname)
+		if g then
+			g.Enabled = false
+		end
+	end
+	writefile("tests/out/ui_" .. name .. ".json", dumpGui(playerGui, camera.ViewportSize))
+end
+
 test("every controller initializes and starts", function()
 	local Strings = world.require(world.shared.Strings)
 	Strings.setLanguage("ru")
@@ -139,9 +151,12 @@ test("a race plays through countdown, checkpoints and results", function()
 	})
 	assertTrue(ClientState.racing, "race did not start on the client")
 	fire("RunService", "RenderStepped", 1 / 60)
+	uiShot("race_countdown")
 	remote.OnClientEvent:Fire({ phase = "racing", nextIndex = 2, lap = 1 })
 	fire("RunService", "RenderStepped", 1 / 60)
+	uiShot("race_running")
 	remote.OnClientEvent:Fire({ phase = "finished", trackId = "circuit", time = 61.2, medal = "Silver", reward = 1700, newRecord = true, best = 61.2 })
+	uiShot("race_finished")
 	assertTrue(not ClientState.racing, "race did not end")
 	remote.OnClientEvent:Fire({ phase = "cancelled", reason = "RaceTimeout" })
 end)
@@ -165,6 +180,15 @@ test("the own car is simulated and animated", function()
 		fire("RunService", "RenderStepped", 1 / 60)
 	end
 	assertTrue(ClientState.telemetry ~= nil, "no telemetry")
+	ClientState.setDriving(true)
+	ClientState.telemetry.drifting = true
+	ClientState.telemetry.driftAngle = 34
+	ClientState.telemetry.speed = 60
+	ClientState.telemetry.rpm = 0.7
+	ClientState.telemetry.nitro = 0.6
+	fire("RunService", "RenderStepped", 1 / 60)
+	uiShot("driving")
+	ClientState.setDriving(false)
 	-- other players' cars get visual rigs too
 	local other = CarBuilder.build(CarCatalog.get("interceptor"), { ownerName = "Cop" })
 	other:SetAttribute("OwnerUserId", 5)
@@ -378,6 +402,166 @@ test("car service: orders and business windows, and a full hands-on wash", funct
 	end
 	Workshop.exit(true)
 	Net.request = realRequest
+end)
+
+test("dump the screens for the UI renderer", function()
+	local dump = loadchunk(readfile("tests/harness/guidump.luau"), "@tests/harness/guidump.luau", setmetatable({}, { __index = _G }))()
+	local ClientState = world.require(world.client.ClientState)
+	local remotes = game:GetService("ReplicatedStorage").CarsRemotes
+	local Service, Workshop, Garage = controllers.Service, controllers.Workshop, controllers.Garage
+	local CFrame = env.CFrame
+	local now = env.workspace:GetServerTimeNow()
+	local function hideModals()
+		for _, gui in playerGui:GetChildren() do
+			for _, d in gui:GetChildren() do
+				if d.ClassName ~= "UIScale" and (string.match(d.Name, "Dim$") or d.Name == "Orders" or d.Name == "Business" or d.Name == "Result" or d.Name == "LevelUp") then
+					d.Visible = false
+				end
+			end
+		end
+	end
+	local function shot(name)
+		for _ = 1, 3 do
+			fire("RunService", "RenderStepped", 1 / 60)
+		end
+		for _, name in { "CarsLoading", "CarsRace" } do
+			local g = playerGui:FindFirstChild(name)
+			if g then
+				g.Enabled = false
+			end
+		end
+		writefile("tests/out/ui_" .. name .. ".json", dump(playerGui, camera.ViewportSize))
+	end
+
+	-- start from a clean screen: no toasts or reward popups from earlier tests
+	local notes = playerGui:FindFirstChild("CarsNotifications")
+	for _, holder in notes:GetChildren() do
+		for _, c in holder:GetChildren() do
+			if c.ClassName == "Frame" then
+				c:Destroy()
+			end
+		end
+	end
+	local character = Instance.new("Model")
+	local hrp = Instance.new("Part")
+	hrp.Name = "HumanoidRootPart"
+	hrp.CFrame = CFrame.new(-330, 3, -95)
+	hrp.Parent = character
+	character.PrimaryPart = hrp
+	character.Parent = env.workspace
+	localPlayer.Character = character
+
+	local p = snapshot()
+	p.cash = 48250
+	p.service.level = 5
+	p.service.xp = 290
+	p.service.orders = 23
+	p.service.stars = 61
+	p.service.earned = 18400
+	p.service.upgrades.bays = 1
+	p.service.upgrades.tools = 2
+	p.service.tutorial = 0
+	p.service.orders = 0
+	ClientState.setProfile(p)
+	local function job(id, vehicle, source, services, state, extra)
+		local j = {
+			id = id,
+			tier = if source == "model" then "mopeds" else "compact",
+			source = source,
+			vehicle = vehicle,
+			services = services,
+			paint = 13,
+			reward = 180 + id * 37,
+			xp = 18 + id,
+			state = state,
+			steps = world.require(world.shared.ServiceConfig).stepsFor(services),
+			step = 1,
+			size = if source == "model" then "small" else "car",
+			waitingSince = now - id * 20,
+		}
+		for k, v in extra or {} do
+			j[k] = v
+		end
+		return j
+	end
+	remotes.ServiceState.OnClientEvent:Fire({
+		plot = 1,
+		origin = CFrame.new(-310, 0.2, -115),
+		reception = CFrame.new(-386, 3, -99),
+		jobs = {
+			job(11, "moped", "model", { "wash" }, "waiting"),
+			job(12, "dirtbike", "model", { "repair", "wash" }, "waiting"),
+			job(13, "pebble", "car", { "paint" }, "waiting", { target = 5 }),
+			job(14, "classicbike", "model", { "wash" }, "inBay", { assignee = "worker", worker = 1, workerStart = now - 6, workerDuration = 20 }),
+		},
+		workers = { { index = 1, state = "working", job = 14 } },
+		serverTime = now,
+	})
+	for _ = 1, 3 do
+		fire("RunService", "Heartbeat", 1)
+	end
+	hideModals()
+	remotes.Notify.OnClientEvent:Fire("ServiceArrived", {}, "info")
+	remotes.Reward.OnClientEvent:Fire("service", 240, 3)
+	remotes.Reward.OnClientEvent:Fire("drift", 120, 3.4)
+	shot("hud")
+	for _, holder in notes:GetChildren() do
+		for _, c in holder:GetChildren() do
+			if c.ClassName == "Frame" then
+				c:Destroy()
+			end
+		end
+	end
+	Service.openOrders()
+	shot("orders")
+	hideModals()
+	Service.openBusiness()
+	shot("business")
+	hideModals()
+	Service._test.showResult({ job = 9, reward = 240, tip = 60, xp = 22, stars = 3, worker = false, vehicle = "moped", source = "model" })
+	shot("result")
+	hideModals()
+	Service._test.showLevelUp(4)
+	shot("levelup")
+	hideModals()
+
+	-- the workshop minigame on a parked moped
+	local moped = world.require(world.shared.ServiceModels).build("moped", { paint = 22 })
+	world.require(world.shared.ServiceModels).weldToRoot(moped)
+	moped:SetAttribute("ServiceJob", 21)
+	moped.Parent = env.workspace
+	game:GetService("CollectionService"):AddTag(moped, "ServiceCustomer")
+	remotes.ServiceState.OnClientEvent:Fire({
+		plot = 1,
+		origin = CFrame.new(-310, 0.2, -115),
+		jobs = { job(21, "moped", "model", { "repair", "wash" }, "inBay", { assignee = "player", bay = 1, step = 3 }) },
+		workers = {},
+		serverTime = now,
+	})
+	local Net = world.require(world.shared.Net)
+	local realRequest = Net.request
+	Net.request = function(action)
+		if action == "ServiceWork" then
+			return { ok = true, args = { 3 } }
+		end
+		return { ok = true }
+	end
+	assertTrue(Workshop.enter(21), "workshop did not open for the screenshot")
+	local sess = Workshop._test.session()
+	for i = 1, 6 do
+		local spot = sess.spots[i]
+		if spot then
+			Workshop._test.brushAt(Workshop._test.spotPosition(spot), 0.05)
+		end
+	end
+	shot("workshop")
+	Workshop.exit(true)
+	Net.request = realRequest
+
+	Garage.open()
+	shot("garage")
+	Garage.close()
+	hideModals()
 end)
 
 return tests

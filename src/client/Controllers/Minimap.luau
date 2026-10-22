@@ -176,7 +176,7 @@ function Minimap.init()
 		Parent = map,
 	})
 	Kit.corner(homeMarker, 13)
-	Kit.stroke(homeMarker, Color3.new(1, 1, 1), 2, 0.1)
+	Kit.stroke(homeMarker, T.Ink, 2.5, 0)
 	-- the player's arrow stays in the middle
 	arrow = Kit.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -190,9 +190,9 @@ function Minimap.init()
 	Kit.label({
 		Size = UDim2.fromScale(1, 1),
 		Text = "▲",
-		TextSize = 18,
+		TextSize = 22,
 		TextColor3 = T.Accent,
-		TextStrokeTransparency = 0.2,
+		outline = 2.5,
 		ZIndex = 10,
 		Parent = arrow,
 	})
@@ -204,18 +204,31 @@ function Minimap.init()
 		Parent = root,
 	})
 	Kit.corner(ring, SIZE / 2)
-	Kit.stroke(ring, Color3.new(1, 1, 1), 3, 0.6)
-	Kit.label({
+	Kit.stroke(ring, Color3.new(1, 1, 1), 3, 0.35)
+	local north = Kit.label({
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 4),
-		Size = UDim2.fromOffset(20, 16),
+		Size = UDim2.fromOffset(22, 22),
 		Text = "N",
-		TextSize = 13,
-		TextColor3 = T.Muted,
+		TextSize = 14,
+		BackgroundColor3 = T.Bad,
+		BackgroundTransparency = 0,
+		outline = 1.5,
 		ZIndex = 12,
 		Name = "North",
 		Parent = root,
 	})
+	Kit.corner(north, 11)
+	-- thick outline around the whole map (outside the clipping group)
+	local frame = Kit.new("Frame", {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = root.Position,
+		Size = root.Size,
+		BackgroundTransparency = 1,
+		Parent = root.Parent,
+	})
+	Kit.corner(frame, SIZE / 2)
+	Kit.stroke(frame, T.Ink, 4, 0)
 end
 
 function Minimap.start()
